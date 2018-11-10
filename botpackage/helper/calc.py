@@ -1,3 +1,4 @@
+import sys
 import math
 import pyparsing
 
@@ -107,11 +108,12 @@ def try_parse(s):
 
 def evaluate(s):
     try:
-        return parse(s)[0].eval()
-    except pyparsing.ParseException as e:
-        return e
-    except pyparsing.ParseFatalException as e:
-        return e
-    except RecursionError as e:
+        return try_parse(s)[0].eval()
+    except EvalException as e:
         return e
 
+if __name__ == "__main__":
+    parsed = parse(sys.argv[1])
+    print(parsed[0].eval())
+    for i in range(1000):
+        parsed[0].eval()
