@@ -9,7 +9,7 @@ def _unary_eval(chr_to_func):
             self.func = chr_to_func[op]
 
         def eval(self):
-            return self.func(self.value)
+            return self.func(self.value.eval())
 
     return c
 
