@@ -2,6 +2,12 @@ import sys
 import math
 import pyparsing
 
+class EvalException(Exception):
+    def __init__(self, reason):
+        self.reason = reason
+
+    def __str__(self):
+        return "Evaluation Exception, reason: %s."%self.reason
 
 def _unary_eval(chr_to_func):
     class c:
@@ -78,6 +84,21 @@ integer = pyparsing.pyparsing_common.signed_integer
 floating = pyparsing.pyparsing_common.fnumber
 
 constant = integer | floating
+
+var = pyparsing.Word("$", pyparsing.alphanums, min = 2)
+
+_vars = {}
+
+class _evalVar:
+    def __init__(self, token):
+        self.value = token[0]
+
+    def eval(self):
+        if self.value in _vars:
+            return _vars[self.value]
+        else:
+            raise EvalException("Unknown Variable %s"%self.value)
+
 
 class _evalConst:
     def __init__(self, token):
