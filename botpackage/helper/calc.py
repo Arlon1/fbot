@@ -1,3 +1,4 @@
+import math
 import pyparsing
 
 
@@ -32,6 +33,28 @@ def _binary_eval(chr_to_func, ass):
 
     return c
 
+_functions = {
+        "sqrt": {"call": math.sqrt, "max_args": 1, "min_args" : 1},
+        "gcd": {"call": math.gcd, "max_args": 2, "min_args": 2}
+        }
+
+class _func_eval:
+    @pyparsing.traceParseAction
+    def __init__(self, line, pos, token):
+        f = _functions[token[0]]
+        self.call = f["call"]
+        if len(token[1]) < f["min_args"]:
+            raise pyparsing.ParseFatalException("To few arguments (%s) for function %s, expected at least %s."%(len(token[1]), token[0], f["min_args"]), pos)
+        if len(token[1]) > f["max_args"]:
+            raise pyparsing.ParseFatalException("To many arguments (%s) for function %s, expected at most %s."%(len(token[1]), token[0], f["max_args"]), pos)
+
+        self.values = token[1]
+
+    def eval(self):
+        return self.call(*[i.eval() for i in self.values])
+
+
+
 _leftas = pyparsing.opAssoc.LEFT
 _rightas = pyparsing.opAssoc.RIGHT
 
@@ -64,12 +87,30 @@ class _evalConst:
 
 constant.setParseAction(_evalConst)
 
-parser = pyparsing.infixNotation(constant, _operators)
+parser = pyparsing.infixNotation(constant | _function, _operators)
+
+_function << (pyparsing.Or(map(pyparsing.Keyword, _functions.keys())) + pyparsing.Suppress("(") +  pyparsing.Group(pyparsing.delimitedList(parser)) + pyparsing.Suppress(")"))
+_function.setParseAction(_func_eval)
+
+def parse(s):
+    return parser.parseString(s, parseAll=True)
+
+def try_parse(s):
+    try:
+        return parse(s)
+    except pyparsing.ParseException as e:
+        return e
+    except pyparsing.ParseFatalException as e:
+        return e
+    except RecursionError as e:
+        return e
 
 def evaluate(s):
     try:
-        return parser.parseString(s, parseAll=True)[0].eval()
+        return parse(s)[0].eval()
     except pyparsing.ParseException as e:
+        return e
+    except pyparsing.ParseFatalException as e:
         return e
     except RecursionError as e:
         return e
