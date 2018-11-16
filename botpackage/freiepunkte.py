@@ -20,16 +20,17 @@ def processMessage(args, rawMessage, db_connection):
 
 
 	parser = argparse.ArgumentParser()
-	parser.add_argument('punktName')
-	parser.add_argument('username')
+	parser.add_argument('punktName', metavar='Punkt')
+	parser.add_argument('username', metavar='Nick')
 	parser.add_argument('-s', dest='toAdd', action='store_const', const=0)
-	parser.add_argument('-a', dest='toAdd', nargs='?', type=int, default=+1, const=+1)
-	parser.add_argument('-r', dest='toAdd', nargs='?', type=int, default=-1, const=-1)
-	parser.add_argument('müll', nargs='*')
+	group = parser.add_mutually_exclusive_group()
+	group.add_argument('-a', dest='toAdd', nargs='?', type=int, default=+1)
+	group.add_argument('-r', dest='toAdd', nargs='?', type=negative_int, const=-1)
+	# ~ group.add_argument('--', dest='toAdd', action='store_const', const=43, default=42)
 	try:
 		parsedArgs = vars(parser.parse_known_args(args)[0])
 	except argparse.ArgumentError:
-		return helper.botMessage(_help, _botname)
+		return helper.botMessage(str.replace(parser.format_usage(), '\n', ''), _botname)
 
 	if parsedArgs['toAdd'] == None:
 		parsedArgs['toAdd'] = 1
@@ -120,3 +121,6 @@ def punktNameFromPunktid(cursor, punktid):
 	if query != None:
 		return query[0]
 	return None
+
+def negative_int(i):
+	return -int(i)

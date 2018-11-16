@@ -5,7 +5,8 @@ from bs4 import BeautifulSoup
 import pyparsing
 import re
 
-_botname = "seminar"
+_bottrigger = "seminar"
+_botname = "ein Orga"
 _help = "Listet Informationen über die bevorstehenden Seminare."
 _main_url = "https://qed-verein.de"
 
@@ -95,7 +96,6 @@ def format_news(news):
     return _format_string.format(**news, datestring = datestring)
 
 def processMessage(args, rawMessage, db_connection):
-    if len(args) == 1 and args[0].lower() == "!" + _botname:
+    if len(args) == 1 and args[0].lower() == "!" + _bottrigger:
         news = get_all()
         return helper.botMessage("\n".join(map(format_news, news)), _botname)
-

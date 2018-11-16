@@ -7,12 +7,15 @@ import sqlite3
 # system libraries
 import json # json
 import argparse
-
 import threading # lock
 import time # sleep()
 
 from varspace.settings import *
 import botpackage
+
+from botpackage.helper.mystrip import _space_chars, stripFromBegin
+from botpackage.helper.split import split_with_quotation_marks
+
 
 def on_close(ws):
 	print('ws closed')
@@ -26,11 +29,11 @@ db_connection = sqlite3.connect('varspace/fbotdb.sqlite')
 def on_message(ws, message):
 	messageDecoded = json.loads(message)
 	chatPost = messageDecoded['message']
-	messageDecoded['name'] = messageDecoded['name'].strip(' \n\t\u200b')
+	print('received', repr(messageDecoded['message']))
+	messageDecoded['name'] = messageDecoded['name'].strip(''.join(_space_chars))
 	if int(messageDecoded['bottag']) != 0:
 		return
 	args = split_with_quotation_marks(chatPost)
-	print('received', repr(messageDecoded['message']))
 	for bot in botpackage.__all__:
 		answer = bot.processMessage(args, messageDecoded, db_connection)
 		if answer is not None:
@@ -88,28 +91,6 @@ def format_cookies(obj):
 		retval += key + '=' + obj[key] + ';'
 	return retval
 
-def split_with_quotation_marks(s):
-	retval = ['']
-	quote_mode = None
-	_quotation_chars = ['\'', '"']
-	_space_chars = [' ', '\t', '\n', '\u200b']
-	for c in s:
-		if quote_mode is None:
-			if c in _quotation_chars:
-				quote_mode = c
-				retval.append('')
-			elif c in _space_chars:
-				retval.append('')
-				pass
-			else:
-				retval[len(retval)-1] += c
-		else:
-			if c == quote_mode:
-				quote_mode = None
-			else:
-				retval[len(retval)-1] += c
-	return [x for x in retval if x != '']
-
 
 def mainloop(args):
 	parser = argparse.ArgumentParser()
@@ -118,11 +99,8 @@ def mainloop(args):
 	parser.add_argument('--mainchannel-on-my-own-risk', action='store_true')
 	parsedArgs = vars(parser.parse_args())
 
-	if parsedArgs['mainchannel_on_my_own_risk'] == True:
-		parsedArgs['channel'] = ''
-
 	if parsedArgs['interactive'] == True:
-		print('fbot interactive mode. first word (space-delimeted) will be used as nick')
+		print('fbot interactive mode. first word will be used as nick')
 		eiDii = 0
 		while True:
 			eiDii += 1
@@ -133,11 +111,20 @@ def mainloop(args):
 			except:
 				raise
 			inpSplit = split_with_quotation_marks(inp)
+			message = {
+				'name': ''.join(inpSplit[:1]),
+				'username' : None,
+				'message': stripFromBegin(inp, inpSplit[:1]),
+				'id' : eiDii,
+			}
 			for bot in botpackage.__all__:
-				x = bot.processMessage(inpSplit[1:], {'name': ''.join(inpSplit[:1]), 'message': ' '.join([x + ' ' for x in inpSplit[1:]]), 'id' : eiDii}, db_connection)
+				x = bot.processMessage(inpSplit[1:], message, db_connection)
 				if x is not None:
 					print(x)
 			print()
+
+	if parsedArgs['mainchannel_on_my_own_risk'] == True:
+		parsedArgs['channel'] = ''
 	cookies = getCookies()
 	while True:
 		print('creating new websocket')

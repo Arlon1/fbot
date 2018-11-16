@@ -1,16 +1,22 @@
 import sqlite3
+import parsedatetime, datetime
 
 from botpackage.helper import helper
+from botpackage.helper.mystrip import stripFromBegin, _space_chars
+from botpackage.helper.split import split_with_quotation_marks
 
-_botname = 'pingbot'
-_posts_since_ping = 2
+_botname = '                               Daniel                     '
+_posts_since_ping = 25
 
 def processMessage(args, rawMessage, db_connection):
 	cursor = db_connection.cursor()
 
 	message = None
 
-	recipientNicks = [rawMessage['name'].lower()]
+	if rawMessage['username'] != None:
+		recipientNicks = [rawMessage['username'].lower()]
+	else:
+		recipientNicks = [rawMessage['name'].lower()]
 	for nick in cursor.execute(
 				'SELECT lower(nickname) '
 				'FROM nicknames '
@@ -19,13 +25,13 @@ def processMessage(args, rawMessage, db_connection):
 					'FROM nicknames '
 					'WHERE lower(nickname) == ? '
 					'ORDER BY deletable DESC'
-				');', (rawMessage['name'].lower(),)
+				');', (recipientNicks[0],)
 		):
 		if nick[0].lower() not in recipientNicks:
 			recipientNicks.append(nick[0].lower())
 
 
-	notThisPing = False
+	pingProperties = dict(print=True, delete=True)
 	for nick in recipientNicks:
 		cursor = db_connection.cursor()
 		for pong in \
@@ -35,25 +41,33 @@ def processMessage(args, rawMessage, db_connection):
 						'WHERE lower(recipient) == ? '
 						';', (nick.lower(), )
 				):
-			print('pong is', pong)
-			if pong[2] + _posts_since_ping - 1 >= rawMessage['id']:
-				notThisPing = True
-			if notThisPing == False:
-				if message is None:
+			if pong[2] + _posts_since_ping > rawMessage['id']:
+				pingProperties['print'] = False
+			# ~ pongSplit = split_with_quotation_marks(pong[1])
+			# ~ if len(pongSplit) >= 3 \
+					# ~ and pongSplit[0].startswith('-') \
+					# ~ and pongSplit[0][1:] == 'pong':
+				# ~ pongTime = datetime.datetime(*parsedatetime.Calendar().parse(pongSplit[1])[0][:6])
+				# ~ if datetime.datetime.now() < pongTime:
+					# ~ pingProperties['print'] = False
+				# ~ else:
+					# ~ pingProperties['delete'] = False
+
+			if pingProperties['print'] == True:
+				if message == None:
 					message = rawMessage['name'] + ', dir wollte jemand etwas sagen:'
 				message += '\n' + pong[0] + ' sagte: ' + pong[1]
 			else:
-				notThisPing = False
-			cursor.execute(
-						'DELETE '
-						'FROM pings '
-						'WHERE sender == ? '
-						'AND message == ? '
-						'AND messageid == ? '
-						';', (pong[0], pong[1], pong[2],))
-			db_connection.commit()
+				pingProperties['ping'] = True
+		# ~ if delete und so
+		cursor.execute(
+					'DELETE '
+					'FROM pings '
+					'WHERE LOWER(recipient) == ? '
+					';', (nick,))
+		# ~ db_connection.commit()
 
-	if len(args) > 1 and args[0] == '!ping' and ''.join(args[2:]).strip(' \t\n') != '':
+	if len(args) >= 2 and args[0] == '!ping' and ''.join(args[2:]).strip(''.join(_space_chars)) != '':
 		cursor = db_connection.cursor()
 		pingCount = cursor.execute(
 					'SELECT count(*) '
@@ -69,7 +83,7 @@ def processMessage(args, rawMessage, db_connection):
 						'VALUES (?, ?, ?, ?)'
 						';', (
 							args[1],
-							''.join(x + ' ' for x in args[2:]).strip(),
+							stripFromBegin(rawMessage['message'], args[0:2]),
 							rawMessage['name'],
 							rawMessage['id'],
 						)

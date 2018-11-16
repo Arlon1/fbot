@@ -1,6 +1,7 @@
 import sqlite3
 
 from botpackage.helper import helper
+from botpackage.helper.mystrip import mystrip
 
 _help = 'usage: !nickname <nickname> [[-a|-r] <nickname>]'
 _botname = 'nicknamebot'

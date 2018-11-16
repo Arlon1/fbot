@@ -5,7 +5,8 @@ from requests import Session
 import re
 from bs4 import BeautifulSoup
 
-_botname = "qedpoll"
+_bottrigger = "qedpoll"
+_botname = 'Nicholas'
 _help = "!qedpoll [<pollnode> | <pollname> | <pollnode> <pollname>]"
 _url = "https://qed-verein.de/node/%s"
 _regex = re.compile("(\d{1,3})% \((\d+) Stimmen*\)")
@@ -15,7 +16,7 @@ fourths = ["", chr(0x258e), chr(0x258c), chr(0x258a), chr(0x2588)]
 def processMessage(args, rawMessage, db_connection):
     parsedArgs = list(filter(lambda x: len(x) > 0, args))
 
-    if len(parsedArgs) < 1 or parsedArgs[0].lower() != "!" + _botname:
+    if len(parsedArgs) < 1 or parsedArgs[0].lower() != "!" + _bottrigger:
         return
 
     cursor = db_connection.cursor()
