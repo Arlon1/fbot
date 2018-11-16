@@ -87,7 +87,7 @@ constant = integer | floating
 
 var = pyparsing.Word("$", pyparsing.alphanums, min = 2)
 
-_vars = {}
+_vars = {"$a": 1}
 
 class _evalVar:
     def __init__(self, token):
@@ -109,7 +109,8 @@ class _evalConst:
 
 constant.setParseAction(_evalConst)
 
-parser = pyparsing.infixNotation(constant | _function, _operators)
+var.setParseAction(_evalVar)
+parser = pyparsing.infixNotation(var | constant | _function, _operators)
 
 _function << (pyparsing.Or(map(pyparsing.Keyword, _functions.keys())) + pyparsing.Suppress("(") +  pyparsing.Group(pyparsing.delimitedList(parser)) + pyparsing.Suppress(")"))
 _function.setParseAction(_func_eval)
@@ -137,4 +138,6 @@ if __name__ == "__main__":
     parsed = parse(sys.argv[1])
     print(parsed[0].eval())
     for i in range(1000):
+        _vars["$a"] += 1
         parsed[0].eval()
+    print(parsed[0].eval())
