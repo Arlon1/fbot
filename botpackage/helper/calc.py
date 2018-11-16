@@ -129,10 +129,13 @@ def try_parse(s):
         return e
 
 def evaluate(s):
+    ev = try_parse(s)
     try:
-        return try_parse(s)[0].eval()
+        return ev[0].eval()
     except EvalException as e:
         return e
+    except TypeError:
+        return ev
 
 if __name__ == "__main__":
     parsed = parse(sys.argv[1])
