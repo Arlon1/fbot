@@ -82,7 +82,8 @@ def learntosing(link, db_connection):
 			link = 'https://www.' + link
 		elif link.startswith('www.'):
 			link = 'https://'+s
-		link = link.replace('youtube.de','youtube.com')
+		link = link.replace('youtube.de/','youtube.com/')
+		link = link.replace('youtu.be/','youtube.com/watch?v=')
 		p=re.compile('^https:\/\/www.youtube.com\/watch\?v=[a-zA-Z0-9\-_]{,20}$')
 		if not p.match(link):
 			return helper.botMessage("Die url passt nicht ganz.", _botname)
