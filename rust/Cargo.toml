@@ -1,3 +1,10 @@
 [package]
 name = "fbot_r"
 version = "1.0.0"
+
+
+[dependencies]
+curl = "0.4.23"
+
+#[dependencies.curl]
+#git = "https://github.com/carllerche/curl-rust"
