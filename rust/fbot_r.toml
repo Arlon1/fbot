@@ -1,6 +1,6 @@
 foo = "abbbbccc"
 [bots]
-channel = ["fbot", "test"]
+channel = ["fbot"]
 
 
 	[bots.enabled]
