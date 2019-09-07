@@ -1,19 +1,20 @@
-use std::io::{stdout, Write};
+use std::fs;
 
-extern crate curl;
-use curl::easy::Easy;
+extern crate serde;
+//use serde::{Serialize, Deserialize};
 
+mod config;
 
 fn main() {
-    print!("testKF\n");
+    // TODO: command line parsing
+    // e.g. "-c config.toml"
 
-    let mut easy = Easy::new();
-    easy.url("https://chat.qed-verein.de/").unwrap();
-    easy.write_function(|data| {
-        stdout().write_all(data).unwrap();
-        Ok(data.len())
-    }).unwrap();
-    easy.perform().unwrap();
+    // reading the config file into a string
+    let contents = fs::read_to_string("fbot_r.toml").expect("fehler");
 
-    println!("{}", easy.response_code().unwrap());
+    let _botconf: config::BotConfig = toml::from_str(&contents).unwrap();
+    for element in _botconf.bots.channel {
+        println!("channel ist {}", element);
+        // TODO spawn a client for every channel
+    }
 }

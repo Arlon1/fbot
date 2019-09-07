@@ -4,7 +4,6 @@ version = "1.0.0"
 
 
 [dependencies]
-curl = "0.4.23"
-
-#[dependencies.curl]
-#git = "https://github.com/carllerche/curl-rust"
+serde = {version = "1.0.99", features = ["derive"]}
+toml = "0.5.3"
+qedchat = {git = "https://git.amesgen.de/amesgen/qedchat-rs.git"}
