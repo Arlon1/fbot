@@ -1,10 +1,13 @@
-foo = "abbbbccc"
 [bots]
 channel = ["fbot"]
 
+[bots.enabled]
+rita = 1
 
-	[bots.enabled]
-	rita = 1
+[account]
+user = "FranzKönig"
+pass = ""
+
 
 [server]
 account = "https://chat.qed-verein.de/rubychat/account', data=credentials)"

@@ -7,3 +7,4 @@ version = "1.0.0"
 serde = {version = "1.0.99", features = ["derive"]}
 toml = "0.5.3"
 qedchat = {git = "https://git.amesgen.de/amesgen/qedchat-rs.git"}
+crossbeam = "0.7.2"
