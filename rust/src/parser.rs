@@ -1,9 +1,7 @@
-//extern crate qedchat;
 //use qedchat::{BotTag, Client, Post, SendPost};
 
 
 //n botloop(channel: String) {
-extern crate qedchat;
 
 pub fn parse_post(post: qedchat::RecvPost) -> (qedchat::SendPost, bool) {
     let post = qedchat::SendPost {

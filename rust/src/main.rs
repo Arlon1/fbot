@@ -1,12 +1,9 @@
 use std::fs;
 
-extern crate serde;
 mod config;
 
-extern crate crossbeam;
 use crossbeam::channel;
 
-extern crate qedchat;
 use qedchat::*;
 
 mod parser;

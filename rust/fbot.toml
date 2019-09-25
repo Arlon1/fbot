@@ -11,4 +11,4 @@ pass = ""
 
 [server]
 account = "https://chat.qed-verein.de/rubychat/account', data=credentials)"
-websocket = "ss://chat.qed-verein.de/websocket?channel=' + args['channel'] + '&position=-0&version=2'"
+websocket = "https://chat.qed-verein.de/websocket?channel=' + args['channel'] + '&position=-0&version=2'"
