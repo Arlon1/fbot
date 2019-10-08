@@ -3,6 +3,13 @@ use qedchat::{BotTag, Post, RecvPost, SendPost};
 
 pub trait Bot: Send + Sync {
     fn process(&self, post: &RecvPost) -> Result<Option<SendPost>>;
+    fn process_sanitized(&self, post: &RecvPost) -> Result<Option<SendPost>> {
+        if post.post.bottag == BotTag::Human {
+            self.process(post)
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 pub struct SimpleBot<T>(T);
@@ -21,21 +28,19 @@ impl<T: Fn(&RecvPost) -> Result<Option<SendPost>> + Send + Sync> Bot for SimpleB
 
 pub fn ping_bot() -> impl Bot {
     SimpleBot::new(|post: &RecvPost| {
-        Ok(
-            if post.post.message == "!rita ping" && post.post.bottag == BotTag::Human {
-                Some(SendPost {
-                    post: Post {
-                        name: "Rita".to_owned(),
-                        message: "pong".to_owned(),
-                        channel: post.post.channel.clone(),
-                        bottag: BotTag::Bot,
-                        delay: post.id + 1,
-                    },
-                    publicid: false,
-                })
-            } else {
-                None
-            },
-        )
+        Ok(if post.post.message == "!rita ping" {
+            Some(SendPost {
+                post: Post {
+                    name: "Rita".to_owned(),
+                    message: "pong".to_owned(),
+                    channel: post.post.channel.clone(),
+                    bottag: BotTag::Bot,
+                    delay: post.id + 1,
+                },
+                publicid: false,
+            })
+        } else {
+            None
+        })
     })
 }

@@ -58,7 +58,7 @@ fn run_bots(client: &Client, bots: &[Box<dyn Bot>], channels: &[&str]) -> Result
                         let recv_post = channel.receive()?;
                         debug!("received: {:?}", recv_post);
                         for bot in bots {
-                            if let Some(send_post) = bot.process(&recv_post)? {
+                            if let Some(send_post) = bot.process_sanitized(&recv_post)? {
                                 channel.send(&send_post)?;
                             }
                         }
@@ -102,7 +102,7 @@ fn run_bots_interactive(bots: &[Box<dyn Bot>]) -> Result<()> {
                 user_id: None,
                 color: 0,
             };
-            if let Some(send_post) = bot.process(&recv_post)? {
+            if let Some(send_post) = bot.process_sanitized(&recv_post)? {
                 println!("[{}] {}", send_post.post.name, send_post.post.message)
             }
         }
