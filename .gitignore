@@ -1,7 +1,3 @@
-__pycache__/*
-fbotdb.sqlite
-
-# editor files
-*~
-\#*#
-.#*
+target/
+Cargo.lock
+fbot-test.toml

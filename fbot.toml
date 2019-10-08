@@ -1,0 +1,6 @@
+[bots]
+channel = ["fbot-testing"]
+
+[account]
+user = ""
+pass = ""
