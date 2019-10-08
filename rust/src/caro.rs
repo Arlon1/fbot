@@ -2,7 +2,7 @@ use qedchat::*;
 
 use crate::abstractBot::Bot;
 
-struct SimpleBot ();
+pub struct SimpleBot();
 impl Bot for SimpleBot {
     fn botlogic(&self, post: &RecvPost) -> Option<SendPost> {
         let mut post = post.post.clone();

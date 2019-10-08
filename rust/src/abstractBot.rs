@@ -1,5 +1,7 @@
 // alle Bots müssen diesen Trait implementieren
-trait Bot: Send + Sync {
+use qedchat::{RecvPost, SendPost, BotTag};
+
+pub trait Bot: Send + Sync {
     // unsere abstrakte Methode
     fn botlogic(&self, post: &RecvPost) -> Option<SendPost>;
 
