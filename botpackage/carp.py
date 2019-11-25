@@ -9,7 +9,7 @@ import botpackage.fantasynames.lovecraftianNames as lovecraftianNames
 _interact_chance = 1/7000
 _cthulhu_chance = 1./300
 
-_reactions = ["*bites {victim} for {dmg} dmg*", "blub. blub. blub.", "blub! *plätscher*", "*blub! *glitzer*", "*lässt sich von {victim} kraulen*"]
+_reactions = ["*bites {victim} for {dmg} dmg*", "blub. blub. blub.", "blub! *plätscher*", "*blub! *glitzer*", "*lässt sich von {victim} kraulen*", "Ladet die QED-App herunter, denn sie ist toll. (https://github.com/jbb01/QED/)"]
 
 _victims = {}
 
