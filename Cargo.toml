@@ -4,12 +4,14 @@ version = "1.0.0"
 edition = "2018"
 
 [dependencies]
-serde = { version = "1.0.101", features = ["derive"] }
-toml = "0.5.3"
-qedchat = { git = "https://git.amesgen.de/amesgen/qedchat-rs.git", rev = "64bb4938" }
-crossbeam = "0.7.2"
-anyhow = "1.0.1"
+serde = { version = "1.0.105", features = ["derive"] }
+toml = "0.5.6"
+qedchat = { git = "https://git.amesgen.de/amesgen/qedchat-rs.git", rev = "ff679ce1f6" }
+anyhow = "1.0.27"
 log = "0.4.8"
-env_logger = "0.7.0"
-structopt = "0.3.2"
-chrono = "0.4.9"
+env_logger = "0.7.1"
+structopt = "0.3.12"
+chrono = "0.4.11"
+futures = "0.3.4"
+tokio = { version = "0.2.13", features = ["full"] }
+nom = "5.1.1"
