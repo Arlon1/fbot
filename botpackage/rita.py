@@ -41,7 +41,7 @@ def processMessage(args, rawMessage, db_connection):
 		return helper.botMessage(antwort, _botname)
 
 	elif args[1].lower().startswith('sing'):
-        return helper.botMessage("!Luise sing ist tot, lang lebe /Luise sing", _botname)
+		return helper.botMessage("!Luise sing ist tot, lang lebe /Luise sing", _botname)
 		parser = argparse.ArgumentParser(prog='!rita sing')
 		parser.add_argument('song', nargs='?')
 		parser.add_argument('-l', '--learn', action='store_true', dest='learn')
