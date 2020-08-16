@@ -47,7 +47,7 @@ async fn run_bots(
   bots: &[impl Bot + Send],
   channels: &[impl AsRef<str>],
 ) -> Result<()> {
-  let (mut sinks, recv_posts): (HashMap<_, _>, Vec<_>) = stream::iter(channels)
+  let (mut sinks, mut recv_posts): (HashMap<_, _>, stream::SelectAll<_>) = stream::iter(channels)
     .map::<Result<_>, _>(Ok)
     .and_then(|c| async move {
       let c = c.as_ref();
@@ -59,8 +59,6 @@ async fn run_bots(
     .await?
     .into_iter()
     .unzip();
-  // stream::SelectAll does not implement Extend :(
-  let mut recv_posts: stream::SelectAll<_> = recv_posts.into_iter().collect();
   while let Some(recv_post) = recv_posts.try_next().await? {
     debug!("received: {:?}", recv_post);
     for bot in bots {
@@ -81,18 +79,26 @@ fn run_bots_interactive(bots: &[impl Bot]) -> Result<()> {
   use chrono::TimeZone;
   use qedchat::*;
   use std::io::{self, BufRead};
+
+  let mut name: String = "name".into();
+  let mut channel: String = "".into();
+
   let stdin = io::stdin();
   for line in stdin.lock().lines() {
     let line = line?;
     if line == "stop" {
       return Ok(());
     }
-    for bot in bots {
+    if let Some(c) = line.strip_prefix("channel := ") {
+      channel = c.into();
+    } else if let Some(n) = line.strip_prefix("name := ") {
+      name = n.into();
+    } else {
       let recv_post = RecvPost {
         post: Post {
-          name: "".to_string(),
-          message: line.clone(),
-          channel: "".to_string(),
+          name: name.clone(),
+          message: line,
+          channel: channel.clone(),
           bottag: BotTag::Human,
           delay: 0,
         },
@@ -102,8 +108,10 @@ fn run_bots_interactive(bots: &[impl Bot]) -> Result<()> {
         user_id: None,
         color: Default::default(),
       };
-      if let Some(send_post) = bot.process(&recv_post)? {
-        println!("[{}] {}", send_post.post.name, send_post.post.message)
+      for bot in bots {
+        if let Some(send_post) = bot.process(&recv_post)? {
+          println!("[{}] {}", send_post.post.name, send_post.post.message)
+        }
       }
     }
   }
