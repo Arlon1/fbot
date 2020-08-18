@@ -1,4 +1,4 @@
-# Maintainer:  <fr@nz>
+# Maintainer: Franz <>
 pkgname=fbot
 _binaryname=rusty_rita
 pkgver=1
