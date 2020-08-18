@@ -1,0 +1,49 @@
+# Maintainer:  <fr@nz>
+pkgname=fbot
+_binaryname=rusty_rita
+pkgver=1
+pkgver() {
+  cd "$pkgname"
+  printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+pkgrel=1
+epoch=
+pkgdesc="fbot for qedchat"
+arch=('i686' 'x86_64')
+url="github.com/Arlon1/fbot"
+license=('custom')
+groups=()
+depends=()
+makedepends=('rust')
+checkdepends=()
+optdepends=()
+provides=()
+conflicts=()
+replaces=()
+backup=()
+options=()
+install=
+changelog=
+source=("git+${url}.git")
+noextract=()
+md5sums=()
+
+prepare() {
+  cd "$srcdir/$pkgname"
+
+  git checkout rust # temporary until rust is the main branch
+}
+
+build() {
+  cd "$srcdir/$pkgname"
+
+  cargo build --release
+}
+
+package() {
+  cd "$srcdir/$pkgname"
+
+  install -Dm755 target/release/${_binaryname} $pkgdir/opt/${pkgname}/${_binaryname}
+}
+
+# vim:set ts=2 sw=2 et:
