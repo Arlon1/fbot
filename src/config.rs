@@ -1,18 +1,19 @@
 use serde::Deserialize;
+use std::collections::HashMap;
 
 #[derive(Deserialize)]
-pub struct BotConfig {
-  pub bots: BotConfigBots,
-  pub account: BotConfigAccount,
+pub struct Config {
+  pub bots: HashMap<String, Bot>,
+  pub account: Account,
 }
 
 #[derive(Deserialize)]
-pub struct BotConfigBots {
-  pub channel: Vec<String>,
+pub struct Bot {
+  pub channels: Vec<String>,
 }
 
 #[derive(Deserialize)]
-pub struct BotConfigAccount {
+pub struct Account {
   pub user: String,
   pub pass: String,
 }

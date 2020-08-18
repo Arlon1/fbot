@@ -1,9 +1,14 @@
 mod util;
 
 use anyhow::Result;
+use itertools::Itertools;
 use qedchat::{BotTag, Post, RecvPost, SendPost};
+use regex::Regex;
 use std::{collections::HashSet, ops::Deref};
 use structopt::{clap::AppSettings, StructOpt};
+use url::Url;
+
+const CMD_PREFIX: &str = "!";
 
 pub trait Bot {
   fn process(&self, post: &RecvPost) -> Result<Option<SendPost>>;
@@ -48,19 +53,21 @@ pub fn simple_bot(f: impl Fn(&RecvPost) -> Result<Option<(String, String)>>) -> 
         bottag: BotTag::Bot,
         delay: post.id + 1,
       },
-      publicid: false,
+      publicid: true,
     }))
   });
   filter_human_posts(bot)
 }
 
 pub fn structopt_bot<S: StructOpt>(
-  name: &str,
+  cmd_name: &str,
+  nick_name: &str,
   f: impl Fn(S, &RecvPost) -> Result<Option<String>>,
 ) -> impl Bot {
-  let name = name.to_string();
+  let cmd_name = format!("{}{}", CMD_PREFIX, cmd_name);
+  let nick_name = nick_name.to_owned();
   simple_bot(move |post| match util::tokenize_args(&post.post.message) {
-    Some(args) if args.first() == Some(&name) => {
+    Some(args) if args.first() == Some(&cmd_name) => {
       // clap::App is not Send, therefore we can't cache it :(
       let app = S::clap()
         .global_settings(&[
@@ -69,21 +76,33 @@ pub fn structopt_bot<S: StructOpt>(
           AppSettings::NoBinaryName,
           AppSettings::DisableHelpSubcommand,
         ])
-        .name(&name)
-        .bin_name(&name)
+        .name(&cmd_name)
+        .bin_name(&cmd_name)
         .version("")
         .long_version("");
       let msg = match app.get_matches_from_safe(args.into_iter().skip(1)) {
         Ok(matches) => f(S::from_clap(&matches), &post)?,
-        Err(e) => Some(e.to_string()),
+        Err(e) => {
+          let s = e.to_string();
+          let e = if e.kind == structopt::clap::ErrorKind::HelpDisplayed {
+            let index = s.find('\n').unwrap_or(0);
+            s.split_at(index + 1).1
+          } else {
+            s.as_str()
+          };
+          Some(
+            e.replace("\n\n", "\n")
+              .replace("\nFor more information try --help\n", ""),
+          )
+        }
       };
-      Ok(msg.map(|msg| (name.clone(), msg)))
+      Ok(msg.map(|msg| (nick_name.clone(), msg)))
     }
     _ => Ok(None),
   })
 }
 
-pub fn example_bot() -> impl Bot {
+pub fn rita_bot() -> impl Bot {
   #[derive(StructOpt)]
   enum Opt {
     /// Sag was
@@ -91,22 +110,59 @@ pub fn example_bot() -> impl Bot {
       /// Soll ich schreien?
       #[structopt(short, long)]
       laut: bool,
-      text: String,
+      text: Vec<String>,
     },
     /// Rechne krass rum
     Addiere { a1: usize, a2: usize },
   }
   use Opt::*;
-  let bot = structopt_bot("!example", |opt: Opt, post| {
+  let bot = structopt_bot("rita", "        Dr. Ritarost", |opt: Opt, post| {
     Ok(Some(match opt {
       Sag { laut, text } => format!(
         "{}, {}{}",
-        text,
+        text.into_iter().join(" "),
         post.post.name,
         if laut { "!!!!!!" } else { "" }
       ),
       Addiere { a1, a2 } => a1.saturating_add(a2).to_string(),
     }))
   });
-  filter_channels(bot, vec![""])
+  bot
+}
+
+pub fn better_link_bot() -> impl Bot {
+  let re = Regex::new(
+    r"(?x)
+([a-z]{2}\.)
+m\.
+(wikipedia)
+(\.org)",
+  )
+  .expect("invalid regex");
+  let bot = simple_bot(move |post| {
+    let mut better_links = vec![];
+    for s in post.post.message.split_whitespace() {
+      if let Ok(mut url) = Url::parse(&s) {
+        if let Some(host) = url.host_str() {
+          if let Some(caps) = re.captures(host) {
+            let new_host = caps
+              .iter()
+              .skip(1)
+              .flatten()
+              .map(|c| c.as_str().to_string())
+              .collect::<String>();
+            url.set_host(Some(&new_host))?;
+            better_links.push(url.to_string());
+          }
+        }
+      }
+    }
+    let message = better_links.into_iter().join("\n");
+    if message.is_empty() {
+      Ok(None)
+    } else {
+      Ok(Some(("Ruben".to_string(), message)))
+    }
+  });
+  bot
 }

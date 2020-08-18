@@ -1,11 +1,13 @@
+use anyhow::Context;
 use anyhow::Result;
 use bots::Bot;
 use futures::prelude::*;
 use log::{debug, info, warn};
 use qedchat::*;
+use std::collections::HashSet;
 use std::{borrow::Cow, collections::HashMap, path::PathBuf};
 use structopt::StructOpt;
-use tokio::{fs, task::block_in_place};
+use tokio::task::block_in_place;
 
 mod bots;
 mod config;
@@ -13,7 +15,7 @@ mod config;
 #[derive(Debug, StructOpt)]
 #[structopt()]
 struct Opt {
-  #[structopt(short, long, default_value = "fbot.toml")]
+  #[structopt(short, long, default_value = "fbot.dhall")]
   config_file: PathBuf,
   #[structopt(short, long)]
   interactive: bool,
@@ -29,16 +31,32 @@ async fn run() -> Result<()> {
 
   let opt = Opt::from_args();
 
-  let bots: Vec<Box<dyn Bot + Send + Sync>> = vec![Box::new(bots::example_bot())];
+  let conf: config::Config = serde_dhall::from_file(opt.config_file).parse()?;
+
+  let bots_available: HashMap<&'static str, _> = vec![
+    (
+      "better_link_bot",
+      Box::new(bots::better_link_bot()) as Box<dyn Bot + Send + Sync>,
+    ),
+    ("rita_bot", Box::new(bots::rita_bot())),
+  ]
+  .into_iter()
+  .collect();
+
+  let mut bots = vec![];
+  let mut channels = HashSet::new();
+  for (name, botconf) in &conf.bots {
+    let bot = bots_available.get(name.as_str()).context("unknown bot")?;
+    bots.push(bots::filter_channels(bot, botconf.channels.iter()));
+    channels.extend(botconf.channels.iter());
+  }
 
   if opt.interactive {
     println!("starting interactive mode");
     run_bots_interactive(&bots)
   } else {
-    let contents = fs::read_to_string(opt.config_file).await?;
-    let botconf: config::BotConfig = toml::from_str(&contents)?;
-    let client = Client::new(&botconf.account.user, &botconf.account.pass).await?;
-    run_bots(&client, &bots, &botconf.bots.channel).await
+    let client = Client::new(&conf.account.user, &conf.account.pass).await?;
+    run_bots(&client, &bots, &channels.into_iter().collect::<Vec<_>>()).await
   }
 }
 
