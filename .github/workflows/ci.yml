@@ -24,8 +24,9 @@ jobs:
           cargo build --release
           mkdir artifacts
           cp target/release/rusty_rita artifacts
-      - run: cp meta/fbot.service artifacts
+          cp meta/fbot.service artifacts
       - uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./artifacts
+          force_orphan: true
