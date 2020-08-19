@@ -90,6 +90,7 @@ pub fn structopt_bot<S: StructOpt>(
           } else {
             s.as_str()
           };
+
           Some(
             e.replace("\n\n", "\n")
               .replace("\nFor more information try --help\n", ""),

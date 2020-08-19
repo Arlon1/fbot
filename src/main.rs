@@ -1,11 +1,13 @@
-use anyhow::Context;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use bots::Bot;
 use futures::prelude::*;
 use log::{debug, info, warn};
 use qedchat::*;
-use std::collections::HashSet;
-use std::{borrow::Cow, collections::HashMap, path::PathBuf};
+use std::{
+  borrow::Cow,
+  collections::{HashMap, HashSet},
+  path::PathBuf,
+};
 use structopt::StructOpt;
 use tokio::task::block_in_place;
 
