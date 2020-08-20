@@ -35,15 +35,11 @@ async fn run() -> Result<()> {
 
   let conf: config::Config = serde_dhall::from_file(opt.config_file).parse()?;
 
-  let bots_available: HashMap<&'static str, _> = vec![
-    (
-      "better_link_bot",
-      Box::new(bots::better_link_bot()) as Box<dyn Bot + Send + Sync>,
-    ),
+  let bots_available: Vec<(_, Box<dyn Bot + Send + Sync>)> = vec![
+    ("better_link_bot", Box::new(bots::better_link_bot())),
     ("rita_bot", Box::new(bots::rita_bot())),
-  ]
-  .into_iter()
-  .collect();
+  ];
+  let bots_available = bots_available.into_iter().collect::<HashMap<_, _>>();
 
   let mut bots = vec![];
   let mut channels = HashSet::new();
@@ -97,7 +93,6 @@ async fn run_bots(
 
 fn run_bots_interactive(bots: &[impl Bot]) -> Result<()> {
   use chrono::TimeZone;
-  use qedchat::*;
   use std::io::{self, BufRead};
 
   let mut name: String = "name".into();

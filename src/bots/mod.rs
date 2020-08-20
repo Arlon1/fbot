@@ -117,7 +117,7 @@ pub fn rita_bot() -> impl Bot {
     Addiere { a1: usize, a2: usize },
   }
   use Opt::*;
-  let bot = structopt_bot("rita", "        Dr. Ritarost", |opt: Opt, post| {
+  structopt_bot("rita", "        Dr. Ritarost", |opt: Opt, post| {
     Ok(Some(match opt {
       Sag { laut, text } => format!(
         "{}, {}{}",
@@ -127,8 +127,7 @@ pub fn rita_bot() -> impl Bot {
       ),
       Addiere { a1, a2 } => a1.saturating_add(a2).to_string(),
     }))
-  });
-  bot
+  })
 }
 
 pub fn better_link_bot() -> impl Bot {
@@ -140,30 +139,26 @@ m\.
 (\.org)",
   )
   .expect("invalid regex");
-  let bot = simple_bot(move |post| {
+  simple_bot(move |post| {
     let mut better_links = vec![];
     for s in post.post.message.split_whitespace() {
       if let Ok(mut url) = Url::parse(&s) {
-        if let Some(host) = url.host_str() {
-          if let Some(caps) = re.captures(host) {
-            let new_host = caps
-              .iter()
-              .skip(1)
-              .flatten()
-              .map(|c| c.as_str().to_string())
-              .collect::<String>();
-            url.set_host(Some(&new_host))?;
-            better_links.push(url.to_string());
-          }
+        if let Some(caps) = url.host_str().and_then(|host| re.captures(host)) {
+          let new_host = caps
+            .iter()
+            .skip(1)
+            .flatten()
+            .fold(String::new(), |a, c| a + c.as_str());
+          url.set_host(Some(&new_host))?;
+          better_links.push(url.to_string());
         }
       }
     }
-    let message = better_links.into_iter().join("\n");
-    if message.is_empty() {
-      Ok(None)
+    Ok(if better_links.is_empty() {
+      None
     } else {
-      Ok(Some(("Ruben".to_string(), message)))
-    }
-  });
-  bot
+      let message = better_links.into_iter().join("\n");
+      Some(("Ruben".to_string(), message))
+    })
+  })
 }
