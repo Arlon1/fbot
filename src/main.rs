@@ -93,17 +93,20 @@ async fn run_bots(
 
 fn run_bots_interactive(bots: &[impl Bot]) -> Result<()> {
   use chrono::TimeZone;
-  use std::io::{self, BufRead};
 
   let mut name: String = "name".into();
   let mut channel: String = "".into();
 
-  let stdin = io::stdin();
-  for line in stdin.lock().lines() {
-    let line = line?;
-    if line == "stop" {
-      return Ok(());
-    }
+  let mut e = rustyline::Editor::<()>::new();
+  let hist_file = ".fbot.history";
+  let _ = e.load_history(hist_file);
+  loop {
+    let line = e.readline(&format!(
+      "🦀🦀🦀 channel: '{}' | name: '{}'\n🦀🦀🦀> ",
+      channel, name
+    ))?;
+    e.add_history_entry(&line);
+    e.save_history(hist_file)?;
     if let Some(c) = line.strip_prefix("channel := ") {
       channel = c.into();
     } else if let Some(n) = line.strip_prefix("name := ") {
@@ -130,5 +133,4 @@ fn run_bots_interactive(bots: &[impl Bot]) -> Result<()> {
       }
     }
   }
-  Ok(())
 }

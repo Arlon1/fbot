@@ -1,6 +1,6 @@
 target/
 Cargo.lock
-fbot-test.toml
+fbot-*.dhall
 
 
 # valgrind
@@ -9,3 +9,5 @@ vgcore.*
 
 \#*#
 .#*
+
+.fbot.history
