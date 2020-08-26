@@ -1,0 +1,15 @@
+[Unit]
+Description=
+Documentation=
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+WorkingDirectory=/opt/fbot
+ExecStart=/opt/fbot/rusty_rita
+Restart=always
+RestartSec=5s
+MemoryMax=50M
+
+[Install]
+WantedBy=multi-user.target
