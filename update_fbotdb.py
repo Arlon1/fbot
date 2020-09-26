@@ -70,7 +70,7 @@ if __name__ == '__main__':
 
     # diff UNION data
     toAdd = [
-        [x['name']+x['vorname'], x['userid']]
+        [x['vorname']+x['name'], x['userid']]
         for x in data
         if x['userid'] in diff
         ]
