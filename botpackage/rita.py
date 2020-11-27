@@ -63,7 +63,7 @@ def processMessage(args, rawMessage, db_connection):
 		if parsedArgs['learn']:
 			return learntosing(parsedArgs['song'], db_connection)
 		elif parsedArgs['remove']:
-			if rawMessage['username'] in botMasters:
+			if True or rawMessage['username'] in botMasters:
 				return removeasong(parsedArgs['song'], db_connection)
 			else:
 				return helper.botMessage('DU bist nicht mein botmaster. ich bin gescheitert', _botname)
@@ -107,13 +107,13 @@ def learntosing(link, db_connection):
 	if query is not None:
 		return helper.botMessage("Das kenn ich schon.", _botname)
 	vid_id = link.partition("?v=")[2]
-	vid_metadata = youtube.title(vid_id)
-	if vid_metadata['status'] != 0:
-		return helper.botMessage(vid_metadata['error'], _botname)
-	vid_title = truncate(vid_metadata['title'], 50)
+	#vid_metadata = youtube.title(vid_id)
+	#if vid_metadata['status'] != 0:
+	#	return helper.botMessage(vid_metadata['error'], _botname)
+	#vid_title = truncate(vid_metadata['title'], 50)
 	cursor.execute("INSERT INTO songs (link) VALUES (?);", (link,))
 	db_connection.commit()
-	return helper.botMessage('Ich kann jetzt was Neues singen: %s'%vid_title, _botname)
+	return helper.botMessage('Ich kann jetzt was Neues singen: %s'%'vid_title', _botname)
 
 
 def songCount(cursor):
