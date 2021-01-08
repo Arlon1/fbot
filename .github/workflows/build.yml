@@ -13,6 +13,7 @@ jobs:
         with:
           profile: minimal
           toolchain: nightly
+          default: true
       - run: |
           cargo build --release
           mkdir artifacts

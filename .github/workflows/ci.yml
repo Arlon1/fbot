@@ -16,6 +16,7 @@ jobs:
           profile: minimal
           toolchain: nightly
           components: rustfmt, clippy
+          default: true
       - name: rustfmt
         run: cargo fmt -- --check
       - name: Annotate commit with clippy warnings
