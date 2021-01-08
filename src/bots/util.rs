@@ -5,7 +5,7 @@ pub fn tokenize_args(s: &str) -> Option<Vec<String>> {
     character::complete::{char, multispace0, multispace1},
     combinator::{map, value, verify},
     error::ParseError,
-    multi::{fold_many0, separated_list},
+    multi::{fold_many0, separated_list0},
     sequence::{delimited, preceded, terminated},
     IResult,
   };
@@ -24,7 +24,7 @@ pub fn tokenize_args(s: &str) -> Option<Vec<String>> {
       char('"'),
     );
     let no_ws_string = take_till1(|c: char| c.is_ascii_whitespace());
-    let args = separated_list(
+    let args = separated_list0(
       multispace1,
       alt((quoted_string, map(no_ws_string, |s: &str| s.to_owned()))),
     );
