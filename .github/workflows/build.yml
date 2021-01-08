@@ -1,0 +1,26 @@
+name: Build binaries
+on:
+  push:
+    branches: [rust]
+jobs:
+  build:
+    name: Build binaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          default: true
+      - run: |
+          cargo build --release
+          mkdir artifacts
+          cp target/release/rusty_rita artifacts
+          cp meta/fbot.service artifacts
+      - uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./artifacts
+          force_orphan: true
