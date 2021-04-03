@@ -3,10 +3,10 @@ mod util;
 use anyhow::Result;
 use itertools::Itertools;
 use qedchat::{BotTag, Post, RecvPost, SendPost};
-use regex::Regex;
 use std::{collections::HashSet, ops::Deref};
 use structopt::{clap::AppSettings, StructOpt};
-use url::Url;
+
+pub mod rubenbot;
 
 const CMD_PREFIX: &str = "!";
 
@@ -103,7 +103,7 @@ pub fn structopt_bot<S: StructOpt>(
   })
 }
 
-pub fn rita_bot() -> impl Bot {
+pub fn ritabot() -> impl Bot {
   #[derive(StructOpt)]
   enum Opt {
     /// Sag was
@@ -127,38 +127,5 @@ pub fn rita_bot() -> impl Bot {
       ),
       Addiere { a1, a2 } => a1.saturating_add(a2).to_string(),
     }))
-  })
-}
-
-pub fn better_link_bot() -> impl Bot {
-  let re = Regex::new(
-    r"(?x)
-([a-z]{2}\.)
-m\.
-(wikipedia)
-(\.org)",
-  )
-  .expect("invalid regex");
-  simple_bot(move |post| {
-    let mut better_links = vec![];
-    for s in post.post.message.split_whitespace() {
-      if let Ok(mut url) = Url::parse(&s) {
-        if let Some(caps) = url.host_str().and_then(|host| re.captures(host)) {
-          let new_host = caps
-            .iter()
-            .skip(1)
-            .flatten()
-            .fold(String::new(), |a, c| a + c.as_str());
-          url.set_host(Some(&new_host))?;
-          better_links.push(url.to_string());
-        }
-      }
-    }
-    Ok(if better_links.is_empty() {
-      None
-    } else {
-      let message = better_links.into_iter().join("\n");
-      Some(("Ruben".to_string(), message))
-    })
   })
 }

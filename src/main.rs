@@ -36,8 +36,8 @@ async fn run() -> Result<()> {
   let conf: config::Config = serde_dhall::from_file(opt.config_file).parse()?;
 
   let bots_available: Vec<(_, Box<dyn Bot + Send + Sync>)> = vec![
-    ("better_link_bot", Box::new(bots::better_link_bot())),
-    ("rita_bot", Box::new(bots::rita_bot())),
+    ("rubenbot", Box::new(bots::rubenbot::rubenbot())),
+    ("ritabot", Box::new(bots::ritabot())),
   ];
   let bots_available = bots_available.into_iter().collect::<HashMap<_, _>>();
 
@@ -95,7 +95,7 @@ fn run_bots_interactive(bots: &[impl Bot]) -> Result<()> {
   use chrono::TimeZone;
 
   let mut name: String = "name".into();
-  let mut channel: String = "".into();
+  let mut channel: String = "fbot".into();
 
   let mut e = rustyline::Editor::<()>::new();
   let hist_file = ".fbot.history";
