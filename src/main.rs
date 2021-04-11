@@ -21,6 +21,8 @@ struct Opt {
   config_file: PathBuf,
   #[structopt(short, long)]
   interactive: bool,
+  #[structopt(long)]
+  log_mode: bool,
 }
 
 #[tokio::main]
@@ -41,12 +43,21 @@ async fn run() -> Result<()> {
   ];
   let bots_available = bots_available.into_iter().collect::<HashMap<_, _>>();
 
+  let log_mode_channels = ["".to_owned()];
+
   let mut bots = vec![];
   let mut channels = HashSet::new();
   for (name, botconf) in &conf.bots {
     let bot = bots_available.get(name.as_str()).context("unknown bot")?;
-    bots.push(bots::filter_channels(bot, botconf.channels.iter()));
-    channels.extend(botconf.channels.iter());
+    if opt.log_mode {
+      if botconf.channels.len() > 0 {
+        bots.push(bots::filter_channels(bot, log_mode_channels.iter()));
+        channels.extend(log_mode_channels.iter());
+      }
+    } else {
+      bots.push(bots::filter_channels(bot, botconf.channels.iter()));
+      channels.extend(botconf.channels.iter());
+    }
   }
 
   if opt.interactive {
@@ -54,7 +65,20 @@ async fn run() -> Result<()> {
     run_bots_interactive(&bots)
   } else {
     let client = Client::new(&conf.account.user, &conf.account.pass).await?;
-    run_bots(&client, &bots, &channels.into_iter().collect::<Vec<_>>()).await
+    if opt.log_mode {
+      let log_stream = client
+        .fetch_log("", &LogMode::DateRecent(chrono::Duration::weeks(4)))
+        .await?;
+      tokio::pin!(log_stream);
+      while let Some(recv_post) = log_stream.try_next().await? {
+        for post_str in process_post(recv_post, &bots) {
+          println!("{}", post_str);
+        }
+      }
+      Ok(())
+    } else {
+      run_bots(&client, &bots, &channels.into_iter().collect::<Vec<_>>()).await
+    }
   }
 }
 
@@ -126,11 +150,22 @@ fn run_bots_interactive(bots: &[impl Bot]) -> Result<()> {
         user_id: None,
         color: Default::default(),
       };
-      for bot in bots {
-        if let Some(send_post) = bot.process(&recv_post)? {
-          println!("[{}] {}", send_post.post.name, send_post.post.message)
-        }
+      for post_str in process_post(recv_post, bots) {
+        println!("{}", post_str);
       }
     }
   }
+}
+
+fn process_post(recv_post: RecvPost, bots: &[impl bots::Bot]) -> Vec<String> {
+  let mut posts = vec![];
+  for bot in bots {
+    if let Some(send_post) = bot.process(&recv_post).expect("") {
+      posts.push(format!(
+        "[{}] {}",
+        send_post.post.name, send_post.post.message
+      ));
+    }
+  }
+  posts
 }

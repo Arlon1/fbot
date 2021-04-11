@@ -77,13 +77,16 @@ pub fn rubenbot() -> impl Bot {
       ("qedchat_link_encode", Box::new(qedchat_link_encode())),
     ];
 
-    let posts: Vec<Url> = post
+    let urls = post
       .post
       .message
       .split_whitespace()
       .map(|url_str| Url::parse(url_str))
-      .flatten()
+      .flatten();
+
+    let posts: Vec<Url> = urls
       .map(|url| StatedUrl::new(url))
+      .filter(|su| vec!["http", "https"].contains(&su.get_url().to_owned().scheme()))
       .map(|su| enhancers.iter().fold(su, |su, e| e.1.enhance(&su)))
       .filter(|post| post.is_modified())
       .map(|statedurl| statedurl.get_url())

@@ -14,8 +14,10 @@ impl StatedUrl {
     }
   }
   pub fn set_url(&mut self, url: Url) {
-    self.url = url;
-    self.modified = true;
+    if self.url != url {
+      self.url = url;
+      self.modified = true;
+    }
   }
   pub fn get_url(&self) -> Url {
     self.url.clone()
