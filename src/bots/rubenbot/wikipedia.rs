@@ -19,19 +19,25 @@ pub fn wikipedia_enhancer() -> impl LinkEnhancer {
 struct Wikipedia {
   lang: String,
   title: String,
+  fragment: Option<String>,
 }
 impl Wikipedia {
   pub fn from_url(url: Url) -> Option<Self> {
     let re_domain =
-      Regex::new(r"(?x)(?P<lang>[a-z]{2})\.(m\.)?(wikipedia)(\.org)").expect("invalid regex");
+      Regex::new(r"(?x)(?P<lang>[a-z]{2})\.(m\.)?(wikipedia)(\.org)\.?").expect("invalid regex");
     let re_path_regular = Regex::new(r"/wiki/(?P<title>.+)").expect("invalid regex");
 
     if let Some(captures) = re_domain.captures(url.host_str()?) {
       let lang = captures.name("lang")?.as_str().to_owned();
+      let fragment = url.fragment().map(|frag| frag.to_owned());
 
       if let Some(captures) = re_path_regular.captures(url.path()) {
         let title = captures.name("title")?.as_str().to_owned();
-        Some(Self { lang, title })
+        Some(Self {
+          lang,
+          title,
+          fragment,
+        })
       } else if url.path() == "/w/index.php" {
         let title_matches: Vec<(String, String)> = url
           .query_pairs()
@@ -39,7 +45,11 @@ impl Wikipedia {
           .filter(|pair| pair.0 == "title")
           .collect();
         let title = title_matches.get(0)?.to_owned().1;
-        Some(Self { lang, title })
+        Some(Self {
+          lang,
+          title,
+          fragment,
+        })
       } else {
         None
       }
@@ -48,12 +58,14 @@ impl Wikipedia {
     }
   }
   pub fn to_url(&self) -> Url {
-    Url::parse(&format!(
+    let mut url = Url::parse(&format!(
       "https://{lang}.wikipedia.org/wiki/{title}",
       lang = self.lang,
-      title = self.title
+      title = self.title,
     ))
-    .expect("parsing error")
+    .expect("parsing error");
+    url.set_fragment(self.fragment.as_ref().map(|frag| &frag[..]));
+    url
   }
 
   pub fn query_translation_en(&self) -> Option<Url> {

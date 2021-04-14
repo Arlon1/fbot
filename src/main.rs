@@ -83,7 +83,7 @@ async fn run() -> Result<()> {
             &recv_post.post.name.trim(),
             &recv_post.post.message.trim().replace("\n", ">\n")
           );
-          println!("{}", send_posts.join("\n"));
+          println!("{}\n", send_posts.join("\n"));
         }
       }
       Ok(())
