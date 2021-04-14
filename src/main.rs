@@ -23,6 +23,8 @@ struct Opt {
   interactive: bool,
   #[structopt(long)]
   log_mode: bool,
+  //#[structopt(long, default_value = "")]
+  //log_file: PathBuf,
 }
 
 #[tokio::main]
@@ -71,8 +73,17 @@ async fn run() -> Result<()> {
         .await?;
       tokio::pin!(log_stream);
       while let Some(recv_post) = log_stream.try_next().await? {
-        for post_str in process_post(recv_post, &bots) {
-          println!("{}", post_str);
+        let mut send_posts = vec![];
+        for post_str in process_post(&recv_post, &bots) {
+          send_posts.push(post_str);
+        }
+        if !send_posts.is_empty() {
+          println!(
+            "> {}: {} ",
+            &recv_post.post.name.trim(),
+            &recv_post.post.message.trim().replace("\n", ">\n")
+          );
+          println!("{}", send_posts.join("\n"));
         }
       }
       Ok(())
@@ -150,14 +161,14 @@ fn run_bots_interactive(bots: &[impl Bot]) -> Result<()> {
         user_id: None,
         color: Default::default(),
       };
-      for post_str in process_post(recv_post, bots) {
+      for post_str in process_post(&recv_post, bots) {
         println!("{}", post_str);
       }
     }
   }
 }
 
-fn process_post(recv_post: RecvPost, bots: &[impl bots::Bot]) -> Vec<String> {
+fn process_post(recv_post: &RecvPost, bots: &[impl bots::Bot]) -> Vec<String> {
   let mut posts = vec![];
   for bot in bots {
     if let Some(send_post) = bot.process(&recv_post).expect("") {

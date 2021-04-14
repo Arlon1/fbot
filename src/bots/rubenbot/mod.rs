@@ -1,13 +1,13 @@
-use regex::Regex;
 use url::Url;
 use urlencoding::encode;
 
 pub mod stated_url;
 use stated_url::StatedUrl;
+mod wikipedia;
 
 use crate::bots::*;
 
-trait LinkEnhancer {
+pub trait LinkEnhancer {
   fn enhance(&self, stated_url: &StatedUrl) -> StatedUrl;
 }
 fn simple_enhancer(f: impl Fn(&StatedUrl) -> StatedUrl) -> impl LinkEnhancer {
@@ -18,38 +18,6 @@ fn simple_enhancer(f: impl Fn(&StatedUrl) -> StatedUrl) -> impl LinkEnhancer {
     }
   }
   SimpleEnhancer(f)
-}
-
-fn wikipedia_enhancer() -> impl LinkEnhancer {
-  simple_enhancer(|stated_url| {
-    let mut stated_url = stated_url.clone();
-    let wp_re = Regex::new(
-      r"(?x)
-([a-z]{2}\.)
-m\.
-(wikipedia)
-(\.org)",
-    )
-    .expect("invalid regex");
-    let mut new_url = stated_url.get_url();
-    if let Some(caps) = new_url
-      .clone()
-      .host_str()
-      .and_then(|host| wp_re.captures(host))
-    {
-      let new_host = caps
-        .iter()
-        .skip(1)
-        .flatten()
-        .fold(String::new(), |a, c| a + c.as_str());
-      new_url
-        .set_host(Some(&new_host))
-        .expect("error setting host");
-    }
-    stated_url.set_url(new_url);
-
-    stated_url
-  })
 }
 
 fn qedchat_link_encode() -> impl LinkEnhancer {
@@ -73,7 +41,10 @@ fn qedchat_link_encode() -> impl LinkEnhancer {
 pub fn rubenbot() -> impl Bot {
   simple_bot(move |post| {
     let enhancers: Vec<(_, Box<dyn LinkEnhancer + Send + Sync>)> = vec![
-      ("wikipedia_enhancer", Box::new(wikipedia_enhancer())),
+      (
+        "wikipedia_enhancer",
+        Box::new(wikipedia::wikipedia_enhancer()),
+      ),
       ("qedchat_link_encode", Box::new(qedchat_link_encode())),
     ];
 
@@ -84,20 +55,37 @@ pub fn rubenbot() -> impl Bot {
       .map(|url_str| Url::parse(url_str))
       .flatten();
 
-    let posts: Vec<Url> = urls
+    let posts = urls
       .map(|url| StatedUrl::new(url))
       .filter(|su| vec!["http", "https"].contains(&su.get_url().to_owned().scheme()))
       .map(|su| enhancers.iter().fold(su, |su, e| e.1.enhance(&su)))
       .filter(|post| post.is_modified())
-      .map(|statedurl| statedurl.get_url())
-      .collect();
+      .map(|stated_url| (stated_url.get_url(), stated_url.get_extra_urls()))
+      .collect::<Vec<(Url, Vec<Url>)>>();
 
-    Ok(if posts.is_empty() {
+    let enhanced_urls = posts
+      .clone()
+      .iter()
+      .map(|pair| pair.clone().0.to_string())
+      .collect::<Vec<String>>();
+    let extra_urls = posts
+      .iter()
+      .map(|pair| pair.clone().1)
+      .flatten()
+      .map(|url| url.to_string())
+      .collect::<Vec<String>>();
+
+    Ok(if enhanced_urls.is_empty() && extra_urls.is_empty() {
       None
     } else {
-      let message =
-        "better: ".to_owned() + &posts.into_iter().map(|url| url.to_string()).join("\n");
-      Some(("Ruben".to_string(), message))
+      let mut message = vec![];
+      if !enhanced_urls.is_empty() {
+        message.push("better: ".to_owned() + &enhanced_urls.join("\n"));
+      }
+      if !extra_urls.is_empty() {
+        //message.push("even better: ".to_owned() + &extra_urls.join("\n"));
+      }
+      Some(("Ruben".to_string(), message.join("\n")))
     })
   })
 }
