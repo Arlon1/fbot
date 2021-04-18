@@ -79,7 +79,8 @@ async fn run() -> Result<()> {
         }
         if !send_posts.is_empty() {
           println!(
-            "> {}: {} ",
+            "> {}  {}: {} ",
+            recv_post.date.format("%m-%d %H:%M:M?"),
             &recv_post.post.name.trim(),
             &recv_post.post.message.trim().replace("\n", ">\n")
           );

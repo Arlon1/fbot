@@ -4,15 +4,18 @@ use url::Url;
 use super::{simple_enhancer, LinkEnhancer};
 
 pub fn wikipedia_enhancer() -> impl LinkEnhancer {
-  simple_enhancer(|stated_url| {
+  simple_enhancer(|(stated_url, extra_texts)| {
     let mut stated_url = stated_url.clone();
+    let /* mut */ extra_texts = extra_texts.clone();
 
     if let Some(w) = Wikipedia::from_url(stated_url.get_url()) {
       stated_url.set_url(w.to_url());
-      stated_url.add_extra_url(w.query_translation_en());
+      //if let Some(url_translated) = w.query_translation_en() {
+      //  extra_texts.push(url_translated.to_string());
+      //}
     }
 
-    stated_url
+    (stated_url, extra_texts)
   })
 }
 
@@ -23,11 +26,11 @@ struct Wikipedia {
 }
 impl Wikipedia {
   pub fn from_url(url: Url) -> Option<Self> {
-    let re_domain =
+    let re_hostname =
       Regex::new(r"(?x)(?P<lang>[a-z]{2})\.(m\.)?(wikipedia)(\.org)\.?").expect("invalid regex");
     let re_path_regular = Regex::new(r"/wiki/(?P<title>.+)").expect("invalid regex");
 
-    if let Some(captures) = re_domain.captures(url.host_str()?) {
+    if let Some(captures) = re_hostname.captures(url.host_str()?) {
       let lang = captures.name("lang")?.as_str().to_owned();
       let fragment = url.fragment().map(|frag| frag.to_owned());
 
