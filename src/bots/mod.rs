@@ -1,12 +1,11 @@
+pub mod rubenbot;
 mod util;
 
 use anyhow::Result;
+use clap::{AppSettings, Clap};
 use itertools::Itertools;
 use qedchat::{BotTag, Post, RecvPost, SendPost};
 use std::{collections::HashSet, ops::Deref};
-use structopt::{clap::AppSettings, StructOpt};
-
-pub mod rubenbot;
 
 const CMD_PREFIX: &str = "!";
 
@@ -59,32 +58,29 @@ pub fn simple_bot(f: impl Fn(&RecvPost) -> Result<Option<(String, String)>>) -> 
   filter_human_posts(bot)
 }
 
-pub fn structopt_bot<S: StructOpt>(
+pub fn structopt_bot<C: Clap>(
   cmd_name: &str,
   nick_name: &str,
-  f: impl Fn(S, &RecvPost) -> Result<Option<String>>,
+  f: impl Fn(C, &RecvPost) -> Result<Option<String>>,
 ) -> impl Bot {
   let cmd_name = format!("{}{}", CMD_PREFIX, cmd_name);
   let nick_name = nick_name.to_owned();
+  let app = C::into_app()
+    .global_setting(AppSettings::ColorNever)
+    .global_setting(AppSettings::DisableVersion)
+    .global_setting(AppSettings::NoBinaryName)
+    .global_setting(AppSettings::DisableHelpSubcommand)
+    .name(&cmd_name)
+    .bin_name(&cmd_name)
+    .version("")
+    .long_version("");
   simple_bot(move |post| match util::tokenize_args(&post.post.message) {
     Some(args) if args.first() == Some(&cmd_name) => {
-      // clap::App is not Send, therefore we can't cache it :(
-      let app = S::clap()
-        .global_settings(&[
-          AppSettings::ColorNever,
-          AppSettings::DisableVersion,
-          AppSettings::NoBinaryName,
-          AppSettings::DisableHelpSubcommand,
-        ])
-        .name(&cmd_name)
-        .bin_name(&cmd_name)
-        .version("")
-        .long_version("");
-      let msg = match app.get_matches_from_safe(args.into_iter().skip(1)) {
-        Ok(matches) => f(S::from_clap(&matches), &post)?,
+      let msg = match app.clone().try_get_matches_from(args.into_iter().skip(1)) {
+        Ok(matches) => f(C::from_arg_matches(&matches), &post)?,
         Err(e) => {
           let s = e.to_string();
-          let e = if e.kind == structopt::clap::ErrorKind::HelpDisplayed {
+          let e = if e.kind == clap::ErrorKind::DisplayHelp {
             let index = s.find('\n').unwrap_or(0);
             s.split_at(index + 1).1
           } else {
@@ -104,12 +100,12 @@ pub fn structopt_bot<S: StructOpt>(
 }
 
 pub fn ritabot() -> impl Bot {
-  #[derive(StructOpt)]
+  #[derive(Clap)]
   enum Opt {
     /// Sag was
     Sag {
       /// Soll ich schreien?
-      #[structopt(short, long)]
+      #[clap(short, long)]
       laut: bool,
       text: Vec<String>,
     },

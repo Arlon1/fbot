@@ -1,11 +1,12 @@
 name: CI
 on:
   push:
+    branches: [rust]
   pull_request:
     types: [opened, reopened, synchronize]
 jobs:
-  build-artifacts:
-    name: Build artifacts
+  ci:
+    name: CI
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -15,18 +16,12 @@ jobs:
           profile: minimal
           toolchain: nightly
           components: rustfmt, clippy
+          default: true
+      - name: rustfmt
+        run: cargo fmt -- --check
       - name: Annotate commit with clippy warnings
         uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      - run: cargo fmt -- --check
-      - run: |
-          cargo build --release
-          mkdir artifacts
-          cp target/release/rusty_rita artifacts
-          cp meta/fbot.service artifacts
-      - uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./artifacts
-          force_orphan: true
+      - name: Run tests
+        run: cargo test

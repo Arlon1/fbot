@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use bots::Bot;
+use clap::{crate_name, Clap};
 use futures::prelude::*;
 use log::{debug, info, warn};
 use qedchat::*;
@@ -8,20 +9,19 @@ use std::{
   collections::{HashMap, HashSet},
   path::PathBuf,
 };
-use structopt::StructOpt;
 use tokio::task::block_in_place;
 
 mod bots;
 mod config;
 
-#[derive(Debug, StructOpt)]
-#[structopt()]
+#[derive(Debug, Clap)]
+#[clap(setting(clap::AppSettings::ColoredHelp))]
 struct Opt {
-  #[structopt(short, long, default_value = "fbot.dhall")]
+  #[clap(short, long, default_value = "fbot.dhall")]
   config_file: PathBuf,
-  #[structopt(short, long)]
+  #[clap(short, long)]
   interactive: bool,
-  #[structopt(long)]
+  #[clap(long)]
   log_mode: bool,
   //#[structopt(long, default_value = "")]
   //log_file: PathBuf,
@@ -33,9 +33,9 @@ async fn main() -> Result<()> {
 }
 
 async fn run() -> Result<()> {
-  env_logger::from_env(env_logger::Env::default().default_filter_or("info")).init();
+  setup_logging();
 
-  let opt = Opt::from_args();
+  let opt = Opt::parse();
 
   let conf: config::Config = serde_dhall::from_file(opt.config_file).parse()?;
 
@@ -92,6 +92,17 @@ async fn run() -> Result<()> {
       run_bots(&client, &bots, &channels.into_iter().collect::<Vec<_>>()).await
     }
   }
+}
+
+fn setup_logging() {
+  env_logger::Builder::from_env(
+    env_logger::Env::default()
+      .default_filter_or(format!("error,{}=info", crate_name!().replace('-', "_"))),
+  )
+  .format_timestamp(None)
+  .format_module_path(false)
+  .target(env_logger::Target::Stderr)
+  .init();
 }
 
 async fn run_bots(
