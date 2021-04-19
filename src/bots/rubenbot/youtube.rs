@@ -107,15 +107,22 @@ impl Youtube {
       duration_str += &format!("{}:", hours.to_string());
     }
 
-    let min = duration.num_minutes();
-    if min > 0 {
-      duration_str += &format!("{}:", (min - hours * 60 * 60).to_string());
+    let min_gesamt = duration.num_minutes();
+    let min_display = min_gesamt - hours * 60 * 60;
+    if min_gesamt > 0 {
+      if duration_str.len() > 0 {
+        duration_str += &format!("{:02}:", min_display);
+      } else {
+        duration_str += &format!("{}:", min_display.to_string());
+      }
     }
 
-    let s = &duration.num_seconds();
-    duration_str += &(s - min * 60 - hours * 60 * 60).to_string();
-    if s.to_owned() < 60 {
-      duration_str += "s";
+    let s_gesamt = &duration.num_seconds();
+    let s_display = s_gesamt - min_gesamt * 60 - hours * 60 * 60;
+    if duration_str.len() > 0 {
+      duration_str += &format!("{:02}", s_display);
+    } else {
+      duration_str += &format!("{}s", s_display.to_string());
     }
 
     Some(duration_str)

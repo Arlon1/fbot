@@ -183,7 +183,7 @@ fn run_bots_interactive(bots: &[impl Bot]) -> Result<()> {
 fn process_post(recv_post: &RecvPost, bots: &[impl bots::Bot]) -> Vec<String> {
   let mut posts = vec![];
   for bot in bots {
-    if let Some(send_post) = bot.process(&recv_post).expect("") {
+    if let Some(send_post) = block_in_place(|| bot.process(&recv_post)).expect("") {
       posts.push(format!(
         "[{}] {}",
         send_post.post.name, send_post.post.message

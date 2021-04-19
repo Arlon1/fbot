@@ -58,7 +58,7 @@ pub fn simple_bot(f: impl Fn(&RecvPost) -> Result<Option<(String, String)>>) -> 
   filter_human_posts(bot)
 }
 
-pub fn structopt_bot<C: Clap>(
+pub fn clap_bot<C: Clap>(
   cmd_name: &str,
   nick_name: &str,
   f: impl Fn(C, &RecvPost) -> Result<Option<String>>,
@@ -102,26 +102,38 @@ pub fn structopt_bot<C: Clap>(
 pub fn ritabot() -> impl Bot {
   #[derive(Clap)]
   enum Opt {
-    /// Sag was
-    Sag {
-      /// Soll ich schreien?
-      #[clap(short, long)]
-      laut: bool,
-      text: Vec<String>,
-    },
-    /// Rechne krass rum
-    Addiere { a1: usize, a2: usize },
+    Ping {},
+    Ud { term: String },
   }
   use Opt::*;
-  structopt_bot("rita", "        Dr. Ritarost", |opt: Opt, post| {
+  clap_bot("rita", "        Dr. Ritarost", |opt: Opt, _post| {
     Ok(Some(match opt {
-      Sag { laut, text } => format!(
-        "{}, {}{}",
-        text.into_iter().join(" "),
-        post.post.name,
-        if laut { "!!!!!!" } else { "" }
-      ),
-      Addiere { a1, a2 } => a1.saturating_add(a2).to_string(),
+      Ping {} => "hallu".to_owned(),
+      Ud { term } => {
+        ud_parse(ud_lookup(term).unwrap_or("Verbindungs-Fehler oder rate-limit".to_owned()))
+          .unwrap_or("weiß nicht".to_owned())
+      }
     }))
   })
+}
+
+fn ud_lookup(term: String) -> Option<String> {
+  let text = reqwest::blocking::get(format!(
+    "http://api.urbandictionary.com/v0/define?term={term}",
+    term = term
+  ))
+  .ok()?
+  .text()
+  .ok();
+  text
+}
+
+fn ud_parse(obj: String) -> Option<String> {
+  let obj: serde_json::value::Value = serde_json::from_str(&obj).ok()?;
+  Some(
+    obj.get("list")?.as_array()?[0]
+      .get("definition")?
+      .as_str()?
+      .to_owned(),
+  )
 }
