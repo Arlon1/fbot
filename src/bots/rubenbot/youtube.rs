@@ -1,6 +1,9 @@
 use chrono::Duration;
 use itertools::Itertools;
+use log::error;
 use regex::Regex;
+use serde_json::value::Value;
+use std::process::Command;
 use url::Url;
 
 use super::{simple_enhancer, LinkEnhancer};
@@ -35,34 +38,46 @@ pub fn youtube_link_enhancer() -> impl LinkEnhancer {
   })
 }
 
+#[derive(serde::Deserialize)]
+struct SingleVideo {
+  title: String,
+  duration: Option<Value>,
+  start_time: Option<f64>,
+}
+
 struct Youtube {
   vid_id: String,
   start_time: Option<Duration>,
 
-  metadata: Option<youtube_dl::model::SingleVideo>,
+  metadata: Option<SingleVideo>,
 }
 impl Youtube {
-  fn new(url: &Url, vid_id: String) -> Option<Self> {
-    if let Some(output) = std::process::Command::new("youtube-dl")
+  fn new(url: &Url, vid_id: String) -> Result<Self, String> {
+    if let Ok(output) = Command::new("youtube-dl")
       .args(&["-j", &url.to_string()])
       .output()
-      .ok()
+      .map_err(|err| err.to_string())
     {
-      {
-        let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
-        if stderr.len() > 0 {
-          log::info!("[youtube.rs] stderr of youtube-dl is:\n{}", stderr);
+      let metadata: Option<SingleVideo> = Some(
+        serde_json::from_str(&String::from_utf8_lossy(&output.stdout))
+          .map_err(|err| err.to_string())?,
+      );
+      let start_time = {
+        if let Some(metadata) = &metadata {
+          Some(Duration::seconds(metadata.start_time.unwrap_or(0.0) as i64))
+        } else {
+          None
         }
-      }
-      let metadata = serde_json::from_str(&String::from_utf8_lossy(&output.stdout)).ok();
-      Some(Self {
+      };
+
+      Ok(Self {
         vid_id,
-        start_time: None,
+        start_time,
         metadata,
       })
     } else {
       let start_time = Self::parse_start_time_from_url(url);
-      Some(Self {
+      Ok(Self {
         vid_id,
         start_time,
         metadata: None,
@@ -80,10 +95,20 @@ impl Youtube {
         .map(|pair| pair.1)
         .last()?
         .to_string();
-      Self::new(url, vid_id)
+      Some(
+        Self::new(url, vid_id)
+          .map_err(|err| {
+            error!("{}", err);
+          })
+          .ok()?,
+      )
     } else if re_hostname_shortened.is_match(&url.to_string()) {
       let vid_id = url.path().to_owned();
-      Self::new(url, vid_id)
+      Some(
+        Self::new(url, vid_id)
+          .map_err(|err| error!("{}", err))
+          .ok()?,
+      )
     } else {
       None
     }
@@ -182,7 +207,10 @@ impl Youtube {
     let mut query = std::collections::HashMap::<_, _>::new();
     query.insert("v".to_owned(), self.vid_id.clone());
     if let Some(start_time) = self.start_time() {
-      query.insert("t".to_owned(), start_time.num_seconds().to_string());
+      let start_time_sec = start_time.num_seconds();
+      if start_time_sec != 0 {
+        query.insert("t".to_owned(), start_time_sec.to_string());
+      }
     }
     url.set_query(Some(
       &query

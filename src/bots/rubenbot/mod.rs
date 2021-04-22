@@ -61,7 +61,10 @@ pub fn rubenbot() -> impl Bot {
       .post
       .message
       .split_whitespace()
-      .map(|url_str| Url::parse(url_str))
+      .map(|url_str| {
+        dbg!(&url_str);
+        Url::parse(url_str)
+      })
       .flatten()
       .map(|url| StatedUrl::new(url))
       .filter(|su| vec!["http", "https"].contains(&su.get_url().to_owned().scheme()))

@@ -1,3 +1,4 @@
+pub mod ritabot;
 pub mod rubenbot;
 mod util;
 
@@ -97,43 +98,4 @@ pub fn clap_bot<C: Clap>(
     }
     _ => Ok(None),
   })
-}
-
-pub fn ritabot() -> impl Bot {
-  #[derive(Clap)]
-  enum Opt {
-    Ping {},
-    Ud { term: String },
-  }
-  use Opt::*;
-  clap_bot("rita", "        Dr. Ritarost", |opt: Opt, _post| {
-    Ok(Some(match opt {
-      Ping {} => "hallu".to_owned(),
-      Ud { term } => {
-        ud_parse(ud_lookup(term).unwrap_or("Verbindungs-Fehler oder rate-limit".to_owned()))
-          .unwrap_or("weiß nicht".to_owned())
-      }
-    }))
-  })
-}
-
-fn ud_lookup(term: String) -> Option<String> {
-  let text = reqwest::blocking::get(format!(
-    "http://api.urbandictionary.com/v0/define?term={term}",
-    term = term
-  ))
-  .ok()?
-  .text()
-  .ok();
-  text
-}
-
-fn ud_parse(obj: String) -> Option<String> {
-  let obj: serde_json::value::Value = serde_json::from_str(&obj).ok()?;
-  Some(
-    obj.get("list")?.as_array()?[0]
-      .get("definition")?
-      .as_str()?
-      .to_owned(),
-  )
 }
