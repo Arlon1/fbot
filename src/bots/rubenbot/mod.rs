@@ -50,7 +50,7 @@ pub fn rubenbot() -> impl Bot {
         "wikipedia_enhancer",
         Box::new(wikipedia::wikipedia_enhancer()),
       ),
-      ("qedchat_link_encode", Box::new(qedchat_link_encode())),
+      //("qedchat_link_encode", Box::new(qedchat_link_encode())),
       (
         "youtube_enhancer",
         Box::new(youtube::youtube_link_enhancer()),
