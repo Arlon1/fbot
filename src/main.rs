@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
 use bots::Bot;
-use chrono::Duration;
 use clap::{crate_name, Clap};
 use futures::prelude::*;
 use log::{debug, info, warn};
@@ -10,6 +9,7 @@ use std::{
   collections::{HashMap, HashSet},
   path::PathBuf,
   sync::Mutex,
+  time::Duration,
 };
 use tokio::task::block_in_place;
 
@@ -43,7 +43,7 @@ async fn run() -> Result<()> {
 
   let conf: config::Config = serde_dhall::from_file(opt.config_file).parse()?;
 
-  let mutex_urbandictionary = Mutex::new(InstantWaiter::new(Duration::seconds(2)));
+  let mutex_urbandictionary = Mutex::new(InstantWaiter::new(Duration::from_secs(2)));
 
   let bots_available: Vec<(_, Box<dyn Bot + Send + Sync>)> = vec![
     ("rubenbot", Box::new(bots::rubenbot::rubenbot())),
@@ -192,7 +192,7 @@ fn run_bots_interactive(bots: &[impl Bot]) -> Result<()> {
 fn process_post(recv_post: &RecvPost, bots: &[impl bots::Bot]) -> Vec<String> {
   let mut posts = vec![];
   for bot in bots {
-    if let Some(send_post) = bot.process(&recv_post).expect("") {
+    if let Some(send_post) = block_in_place(|| bot.process(&recv_post)).expect("") {
       posts.push(format!(
         "[{}] {}",
         send_post.post.name, send_post.post.message

@@ -14,20 +14,8 @@ pub fn youtube_link_enhancer() -> impl LinkEnhancer {
     let mut extra_texts = extra_texts.clone();
 
     if let Some(y) = Youtube::from_url(&stated_url.get_url()) {
-      let enh_url = y.to_url();
-      let mut enh_url_with_www = enh_url.clone();
-      enh_url_with_www
-        .set_host(Some("www.youtube.com"))
-        .expect("could not set host");
-      if stated_url
-        .get_url()
-        .query_pairs()
-        .filter(|(name, _)| name == "list")
-        .collect::<Vec<_>>()
-        .len()
-        > 0
-      {
-        stated_url.set_url(enh_url);
+      if y.was_enhanced {
+        stated_url.set_url(y.to_url());
       }
 
       if let Some(a) = y.annotation() {
@@ -38,26 +26,54 @@ pub fn youtube_link_enhancer() -> impl LinkEnhancer {
   })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Debug)]
 struct SingleVideo {
   title: String,
   duration: Option<Value>,
   start_time: Option<f64>,
 }
 
+#[derive(Debug)]
 struct Youtube {
   vid_id: String,
   start_time: Option<Duration>,
+
+  was_enhanced: bool,
+  url: Url,
 
   metadata: Option<SingleVideo>,
 }
 impl Youtube {
   fn new(url: &Url, vid_id: String) -> Result<Self, String> {
+    let mut url = url.clone();
+    let mut was_enhanced = false;
+    let query_filtered = url
+      .query_pairs()
+      .filter(|(key, _value)| !vec!["list", "index"].contains(&&key.to_owned().to_string()[..]))
+      .map(|(key, value)| key + "=" + value)
+      .join("&");
+    if url.query().unwrap_or("") != query_filtered {
+      url.set_query(Some(&query_filtered));
+      was_enhanced = true;
+    }
+
     if let Ok(output) = Command::new("youtube-dl")
       .args(&["-j", &url.to_string()])
       .output()
       .map_err(|err| err.to_string())
     {
+      if !output.status.success() {
+        error!(
+          "youtube-dl exited with {} and said\n{}\nurl was {}",
+          match output.status.code() {
+            Some(code) => format!("Exited with status code: {}", code),
+            None => format!("Process terminated by signal"),
+          },
+          String::from_utf8_lossy(&output.stderr),
+          url.to_string()
+        );
+      }
+
       let metadata: Option<SingleVideo> = Some(
         serde_json::from_str(&String::from_utf8_lossy(&output.stdout))
           .map_err(|err| err.to_string())?,
@@ -73,13 +89,17 @@ impl Youtube {
       Ok(Self {
         vid_id,
         start_time,
+        url: url.to_owned(),
+        was_enhanced,
         metadata,
       })
     } else {
-      let start_time = Self::parse_start_time_from_url(url);
+      let start_time = Self::parse_start_time_from_url(&url);
       Ok(Self {
         vid_id,
         start_time,
+        url: url.to_owned(),
+        was_enhanced,
         metadata: None,
       })
     }
@@ -221,6 +241,7 @@ impl Youtube {
 
     url
   }
+
   pub fn annotation(&self) -> Option<String> {
     let sections = vec![
       self.title(),

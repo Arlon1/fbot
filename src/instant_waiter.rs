@@ -1,6 +1,7 @@
-use chrono::Duration;
-use std::thread::sleep;
-use std::time::Instant;
+use std::{
+  thread::sleep,
+  time::{Duration, Instant},
+};
 
 pub struct InstantWaiter {
   instant: Instant,
@@ -13,11 +14,11 @@ impl InstantWaiter {
       cooldown_period: duration,
     }
   }
-  pub fn wait_for_permission(&mut self) -> () {
+  pub fn wait_for_permission(&mut self) {
     let elapsed = self.instant.elapsed();
-    if elapsed.as_secs() < self.cooldown_period.num_seconds() as u64 {
-      sleep(std::time::Duration::new(1, 0));
+    if elapsed < self.cooldown_period {
+      sleep(self.cooldown_period - elapsed);
     }
-    elapsed.checked_add(elapsed);
+    self.instant = Instant::now();
   }
 }
