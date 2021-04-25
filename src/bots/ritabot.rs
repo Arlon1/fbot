@@ -1,5 +1,4 @@
-use crate::bots::*;
-use crate::instant_waiter::*;
+use crate::{bots::*, instant_waiter::*};
 
 use anyhow::{Context, Result};
 use clap::Clap;
