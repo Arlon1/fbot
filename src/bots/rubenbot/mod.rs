@@ -61,6 +61,7 @@ pub fn rubenbot() -> impl Bot {
       .post
       .message
       .split_whitespace()
+      //.split("")
       .map(|url_str| {
         dbg!(&url_str);
         Url::parse(url_str)

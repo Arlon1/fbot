@@ -10,13 +10,19 @@ pub fn ritabot(execution_last: Mutex<InstantWaiter>) -> impl Bot + 'static {
   enum Opt {
     Ping {},
     Ud { term: String },
+    Decide { _terms: Vec<String> },
+    Sing { _a: Vec<String> },
+
+    Say { _a: Vec<String> },
+    Slap { _a: Vec<String> },
+    Featurerequest { _a: Vec<String> },
   }
   use Opt::*;
   clap_bot("rita", "        Dr. Ritarost", move |opt: Opt, _post| {
     Ok(Some(match opt {
       Ping {} => "hallu".to_owned(),
       Ud { term } => match ud_lookup(term, &execution_last) {
-        Ok(description) => description,
+        Ok(description) => description.replace("\n\n", "\n"),
         Err(e) => {
           if let Some(e) = e.downcast_ref::<DualError>() {
             error!("{}", e.underlying());
@@ -24,12 +30,17 @@ pub fn ritabot(execution_last: Mutex<InstantWaiter>) -> impl Bot + 'static {
           e.to_string()
         }
       },
-      //.unwrap_or("weiß nicht".to_owned()),
+      Decide { _terms } => return Ok(None),
+      Sing { _a } => return Ok(None),
+      Say { _a } => return Ok(None),
+      Slap { _a } => return Ok(None),
+      Featurerequest { _a } => return Ok(None),
     }))
   })
 }
 
 #[derive(Debug, thiserror::Error)]
+#[error("{display_error}")]
 struct DualError {
   display_error: String,
   underlying: String,
@@ -41,13 +52,8 @@ impl DualError {
       underlying,
     }
   }
-  pub fn underlying(&self) -> String {
-    self.underlying.clone()
-  }
-}
-impl std::fmt::Display for DualError {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-    write!(f, "{}", self.display_error)
+  pub fn underlying(&self) -> &str {
+    &self.underlying
   }
 }
 
