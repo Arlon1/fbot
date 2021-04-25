@@ -29,10 +29,7 @@ def processMessage(args, rawMessage, db_connection):
 		return helper.botMessage('Hallu', _botname)
 
 	elif args[1].lower() == 'ud':
-		if len(args) <= 2:
-			return helper.botMessage(_help_ud, _botname)
-		term = stripFromBegin(rawMessage['message'], args[0:2])
-		return helper.botMessage(ud.ud_parser(term), _botname)
+		return
 
 	elif args[1].lower() == 'decide':
 		if len(args) < 2:
