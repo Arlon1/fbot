@@ -3,6 +3,7 @@ use crate::{bots::*, instant_waiter::*};
 use anyhow::{Context, Result};
 use clap::Clap;
 use log::error;
+use sha1::{Digest, Sha1};
 use std::sync::Mutex;
 
 pub fn ritabot(execution_last: Mutex<InstantWaiter>) -> impl Bot + 'static {
@@ -18,7 +19,7 @@ pub fn ritabot(execution_last: Mutex<InstantWaiter>) -> impl Bot + 'static {
     Featurerequest { _a: Vec<String> },
   }
   use Opt::*;
-  clap_bot("rita", "        Dr. Ritarost", move |opt: Opt, _post| {
+  clap_bot("rita", "        Dr. Ritarost", move |opt: Opt, post| {
     Ok(Some(match opt {
       Ping {} => "hallu".to_owned(),
       Ud { term } => match ud_lookup(term, &execution_last) {
@@ -30,7 +31,17 @@ pub fn ritabot(execution_last: Mutex<InstantWaiter>) -> impl Bot + 'static {
           e.to_string()
         }
       },
-      Decide { _terms } => return Ok(None),
+      Decide { _terms } => {
+        let seed =  b"tpraR4gin8XHk_t3bGHZTJ206qc9vyV7LlUMTf655LNJDKGciVXKRLijqGkHgkpW <= Manfreds schlimmstes Geheimnis";
+        let mut text = post.post.message.clone().into_bytes();
+        text.extend_from_slice(seed);
+        let hash = Sha1::digest(&text);
+        if format!("{:x}", hash).chars().nth(0).unwrap() as i64 % 2 == 1 {
+          "+".to_owned()
+        } else {
+          "-".to_owned()
+        }
+      }
       Sing { _a } => return Ok(None),
       Say { _a } => return Ok(None),
       Slap { _a } => return Ok(None),

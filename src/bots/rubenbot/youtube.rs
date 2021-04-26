@@ -26,9 +26,10 @@ pub fn youtube_link_enhancer() -> impl LinkEnhancer {
   })
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, Clone)]
 struct SingleVideo {
   title: String,
+  channel: Option<String>,
   duration: Option<Value>,
   start_time: Option<f64>,
 }
@@ -244,10 +245,33 @@ impl Youtube {
 
   pub fn annotation(&self) -> Option<String> {
     let sections = vec![
-      self.title(),
+      self.title().map(|title| truncate_render(title, 90).0),
+      self
+        .metadata
+        .clone()
+        .map(|m| {
+          if let Some(channel) = m.channel {
+            Some("– ".to_owned() + &truncate_render(channel, 20).0)
+          } else {
+            None
+          }
+        })
+        .flatten(),
       self.format_duration().map(|dur| format!("[{}]", dur)),
     ];
 
     Some(sections.iter().flatten().map(|s| s.to_owned()).join(" "))
+  }
+}
+
+fn truncate_render(s: String, len: usize) -> (String, bool) {
+  let ellipsis = "...".to_owned();
+  if s.len() > len {
+    let mut s = s.clone();
+    s.truncate(len - ellipsis.len());
+    s += &ellipsis;
+    (s, true)
+  } else {
+    (s, false)
   }
 }
