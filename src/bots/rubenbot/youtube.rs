@@ -106,10 +106,10 @@ impl Youtube {
     }
   }
   pub fn from_url(url: &Url) -> Option<Self> {
-    let re_hostname = Regex::new(r"https://(www\.)(youtube\.com)").expect("invalid regex");
-    let re_hostname_shortened = Regex::new(r"https://youtu\.be").expect("invialid regex");
+    let re_hostname = Regex::new(r"(www\.)?(youtube\.com)").expect("invalid regex");
+    let re_hostname_shortened = Regex::new(r"youtu\.be").expect("invialid regex");
 
-    if re_hostname.is_match(&url.to_string()) {
+    if re_hostname.is_match(&url.host_str().unwrap_or("")) {
       let vid_id = url
         .query_pairs()
         .filter(|pair| pair.clone().0 == "v")
@@ -123,7 +123,7 @@ impl Youtube {
           })
           .ok()?,
       )
-    } else if re_hostname_shortened.is_match(&url.to_string()) {
+    } else if re_hostname_shortened.is_match(&url.host_str().unwrap_or("")) {
       let vid_id = url.path().to_owned();
       Some(
         Self::new(url, vid_id)
@@ -244,34 +244,87 @@ impl Youtube {
   }
 
   pub fn annotation(&self) -> Option<String> {
-    let sections = vec![
-      self.title().map(|title| truncate_render(title, 90).0),
-      self
-        .metadata
-        .clone()
-        .map(|m| {
-          if let Some(channel) = m.channel {
-            Some("– ".to_owned() + &truncate_render(channel, 20).0)
-          } else {
-            None
-          }
-        })
-        .flatten(),
-      self.format_duration().map(|dur| format!("[{}]", dur)),
-    ];
+    let title_max_len = 90;
+    let channel_max_len = 25;
+    let max_len = title_max_len + channel_max_len;
 
-    Some(sections.iter().flatten().map(|s| s.to_owned()).join(" "))
+    let title = self.title();
+    let mut channel = self
+      .metadata
+      .clone()
+      .map(|m| {
+        if let Some(channel) = m.channel {
+          Some(channel)
+        } else {
+          None
+        }
+      })
+      .flatten();
+    let duration = self.format_duration().map(|dur| format!("[{}]", dur));
+
+    if let Some(title) = &title {
+      if let Some(ch) = &channel {
+        if title.contains(ch) {
+          channel = None;
+        }
+      }
+    }
+    channel.as_ref().cloned().map(|ch| "– ".to_owned() + &ch);
+
+    if title.as_ref().cloned().unwrap_or("".to_owned()).len()
+      + 1
+      + channel.as_ref().cloned().unwrap_or("".to_owned()).len()
+      > max_len
+    {
+      Some(
+        [
+          &title.as_ref().cloned(),
+          &channel.as_ref().cloned(),
+          &None::<String>,
+          &duration,
+        ]
+        .iter()
+        .cloned()
+        .flatten()
+        .join(" "),
+      )
+    } else {
+      let ch_tr = truncate_render(channel, channel_max_len).map(|(s, _)| s);
+      if &title.as_ref().cloned().unwrap_or("".to_owned()).len()
+        + ch_tr.as_ref().cloned().unwrap_or("".to_owned()).len()
+        < max_len
+      {
+        Some(
+          [
+            &title.as_ref().cloned(),
+            &ch_tr.as_ref().cloned(),
+            &duration,
+          ]
+          .iter()
+          .cloned()
+          .flatten()
+          .join(" "),
+        )
+      } else {
+        let title_tr = truncate_render(title, title_max_len).map(|(s, _)| s);
+        Some([title_tr, ch_tr, duration].iter().flatten().join(" "))
+      }
+    }
   }
 }
 
-fn truncate_render(s: String, len: usize) -> (String, bool) {
+fn truncate_render(s: Option<String>, len: usize) -> Option<(String, bool)> {
   let ellipsis = "...".to_owned();
-  if s.len() > len {
-    let mut s = s.clone();
-    s.truncate(len - ellipsis.len());
-    s += &ellipsis;
-    (s, true)
+  if let Some(s) = s {
+    if s.len() > len {
+      let mut s = s.clone();
+      s.truncate(len - ellipsis.len());
+      s += &ellipsis;
+      Some((s, true))
+    } else {
+      Some((s, false))
+    }
   } else {
-    (s, false)
+    None
   }
 }
