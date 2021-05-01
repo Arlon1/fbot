@@ -269,7 +269,7 @@ impl Youtube {
         }
       }
     }
-    channel.as_ref().cloned().map(|ch| "– ".to_owned() + &ch);
+    channel = channel.map(|ch| "– ".to_owned() + &ch);
 
     if title.as_ref().cloned().unwrap_or("".to_owned()).len()
       + 1
@@ -280,7 +280,6 @@ impl Youtube {
         [
           &title.as_ref().cloned(),
           &channel.as_ref().cloned(),
-          &None::<String>,
           &duration,
         ]
         .iter()

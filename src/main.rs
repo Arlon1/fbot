@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use bots::Bot;
 use clap::{crate_name, Clap};
+use diesel::{pg::PgConnection, prelude::*};
 use futures::prelude::*;
 use log::{debug, info, warn};
 use qedchat::*;
@@ -14,8 +15,9 @@ use std::{
 use tokio::task::block_in_place;
 
 mod bots;
-mod config;
+pub mod config;
 pub mod instant_waiter;
+pub mod string_storage;
 use instant_waiter::*;
 
 #[derive(Debug, Clap)]
@@ -44,31 +46,28 @@ async fn run() -> Result<()> {
   let conf: config::Config = serde_dhall::from_file(opt.config_file).parse()?;
 
   let mutex_urbandictionary = Mutex::new(InstantWaiter::new(Duration::from_secs(2)));
+  let mutex_rita_be = Mutex::new(string_storage::StringStorage::new(
+    "        Dr. Ritarost".to_owned(),
+  ));
 
   let bots_available: Vec<(_, Box<dyn Bot + Send + Sync>)> = vec![
     ("rubenbot", Box::new(bots::rubenbot::rubenbot())),
     (
       "ritabot",
-      Box::new(bots::ritabot::ritabot(mutex_urbandictionary)),
+      Box::new(bots::ritabot::ritabot(mutex_urbandictionary, mutex_rita_be)),
     ),
   ];
   let bots_available = bots_available.into_iter().collect::<HashMap<_, _>>();
 
-  let log_mode_channels = ["".to_owned()];
+  //PgConnection::establish(&conf.db.url).expect(&format!("Error connecting to {}", conf.db.url));
 
   let mut bots = vec![];
   let mut channels = HashSet::new();
+
   for (name, botconf) in &conf.bots {
     let bot = bots_available.get(name.as_str()).context("unknown bot")?;
-    if opt.log_mode {
-      if botconf.channels.len() > 0 {
-        bots.push(bots::filter_channels(bot, log_mode_channels.iter()));
-        channels.extend(log_mode_channels.iter());
-      }
-    } else {
-      bots.push(bots::filter_channels(bot, botconf.channels.iter()));
-      channels.extend(botconf.channels.iter());
-    }
+    bots.push(bots::filter_channels(bot, botconf.channels.iter()));
+    channels.extend(botconf.channels.iter());
   }
 
   if opt.interactive {

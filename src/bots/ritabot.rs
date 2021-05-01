@@ -1,4 +1,4 @@
-use crate::{bots::*, instant_waiter::*};
+use crate::{bots::*, instant_waiter::*, string_storage::*};
 
 use anyhow::{Context, Result};
 use clap::Clap;
@@ -6,7 +6,10 @@ use log::error;
 use sha1::{Digest, Sha1};
 use std::sync::Mutex;
 
-pub fn ritabot(execution_last: Mutex<InstantWaiter>) -> impl Bot + 'static {
+pub fn ritabot(
+  execution_last: Mutex<InstantWaiter>,
+  name_being: Mutex<StringStorage>,
+) -> impl Bot + 'static {
   #[derive(Clap)]
   enum Opt {
     Ping {},
@@ -14,11 +17,13 @@ pub fn ritabot(execution_last: Mutex<InstantWaiter>) -> impl Bot + 'static {
     Decide { _terms: Vec<String> },
     Sing { _a: Vec<String> },
 
-    Say { _a: Vec<String> },
-    Slap { _a: Vec<String> },
-    Featurerequest { _a: Vec<String> },
+    //Be { name: String },
+    Say { a: Vec<String> },
+    Slap { targets: Vec<String> },
+    Featurerequest { features: Vec<String> },
   }
   use Opt::*;
+
   clap_bot("rita", "        Dr. Ritarost", move |opt: Opt, post| {
     Ok(Some(match opt {
       Ping {} => "hallu".to_owned(),
@@ -36,16 +41,23 @@ pub fn ritabot(execution_last: Mutex<InstantWaiter>) -> impl Bot + 'static {
         let mut text = post.post.message.clone().into_bytes();
         text.extend_from_slice(seed);
         let hash = Sha1::digest(&text);
+
         if format!("{:x}", hash).chars().nth(0).unwrap() as i64 % 2 == 1 {
           "+".to_owned()
         } else {
           "-".to_owned()
         }
       }
+      /*Be { name } => {
+        //name_storage.set_s(name.to_owned());
+        //format!("Ich bin jetzt {}", name)
+      }*/
       Sing { _a } => return Ok(None),
-      Say { _a } => return Ok(None),
-      Slap { _a } => return Ok(None),
-      Featurerequest { _a } => return Ok(None),
+      Say { a } => {
+        format!("{:?}", a)
+      }
+      Slap { targets } => format!("Rita schlägt {}", targets.join(" ")),
+      Featurerequest { features } => format!("Ich will {}", features.join(" ")),
     }))
   })
 }

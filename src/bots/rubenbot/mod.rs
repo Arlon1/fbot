@@ -55,6 +55,7 @@ pub fn rubenbot() -> impl Bot {
         "youtube_enhancer",
         Box::new(youtube::youtube_link_enhancer()),
       ),
+      ("qedgallery", Box::new(qedgallery())),
     ];
 
     let send_posts = recv_post
@@ -82,12 +83,14 @@ pub fn rubenbot() -> impl Bot {
       .iter()
       .filter(|(su, _)| su.is_modified())
       .map(|(su, _)| su.get_url().to_string())
+      .dedup()
       .collect::<Vec<String>>();
     let extra_texts = send_posts
       .clone()
       .iter()
       .map(|(_, et)| et.to_owned())
       .flatten()
+      .dedup()
       .join("\n");
 
     Ok({
@@ -106,5 +109,27 @@ pub fn rubenbot() -> impl Bot {
         None
       }
     })
+  })
+}
+
+fn qedgallery() -> impl LinkEnhancer {
+  simple_enhancer(|(stated_url, extra_texts)| {
+    let mut stated_url = stated_url.clone();
+
+    let mut url = stated_url.get_url();
+    if url.host_str().unwrap_or("") == "qedgallery.qed-verein.de" && url.path() == "/image.php" {
+      url.set_path("image_view.php");
+
+      let pairs = &url
+        .query_pairs()
+        .filter(|(key, value)| !(key == "type" && value == "original"))
+        .map(|(key, value)| key + "=" + value)
+        .join("&");
+      url.set_query(Some(pairs));
+
+      stated_url.set_url(url);
+    }
+
+    (stated_url, extra_texts.clone())
   })
 }

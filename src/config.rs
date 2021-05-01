@@ -5,6 +5,7 @@ use std::collections::HashMap;
 pub struct Config {
   pub bots: HashMap<String, Bot>,
   pub account: Account,
+  pub db: DB,
 }
 
 #[derive(Deserialize)]
@@ -16,4 +17,9 @@ pub struct Bot {
 pub struct Account {
   pub user: String,
   pub pass: String,
+}
+
+#[derive(Deserialize)]
+pub struct DB {
+  pub url: String,
 }
