@@ -56,8 +56,20 @@ pub fn ritabot(
       Say { a } => {
         format!("{:?}", a)
       }
-      Slap { targets } => format!("Rita schlägt {}", targets.join(" ")),
-      Featurerequest { features } => format!("Ich will {}", features.join(" ")),
+      Slap { targets } => {
+        let mut targets = targets.join(" ");
+        if !targets.ends_with(".") {
+          targets += ".";
+        }
+        format!("Rita schlägt {}", targets)
+      }
+      Featurerequest { features } => {
+        let mut features = features.join(" ");
+        if !features.ends_with(".") {
+          features += ".";
+        }
+        format!("Ich will {}", features)
+      }
     }))
   })
 }
