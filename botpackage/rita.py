@@ -67,6 +67,7 @@ def processMessage(args, rawMessage, db_connection):
 		return helper.botMessage(singasong(db_connection.cursor()), _botname)
 
 	elif args[1].lower() in [_slap_trigger, _featurerequest_trigger]:
+		return
 		if len(args) == 2:
 			return helper.botMessage('was meinst du?', _botname)
 
