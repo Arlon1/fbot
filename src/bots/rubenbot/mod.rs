@@ -98,12 +98,12 @@ pub fn rubenbot() -> impl Bot {
       if !enhanced_urls.is_empty() {
         message.push("better: ".to_owned() + &enhanced_urls.join("\n"));
       }
-      if extra_texts.len() > 0 {
+      if !extra_texts.is_empty() {
         message.push(extra_texts);
       }
       let message = message.join("\n");
 
-      if message.len() > 0 {
+      if !message.is_empty() {
         Some(("Ruben".to_string(), message))
       } else {
         None

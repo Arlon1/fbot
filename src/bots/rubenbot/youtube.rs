@@ -262,6 +262,14 @@ impl Youtube {
       .flatten();
     let duration = self.format_duration().map(|dur| format!("[{}]", dur));
 
+    channel = channel.map(|channel| {
+      if let Some(ch) = channel.strip_suffix(" - Topic") {
+        ch.clone().to_owned()
+      } else {
+        channel
+      }
+    });
+
     if let Some(title) = &title {
       if let Some(ch) = &channel {
         if title.contains(ch) {
