@@ -5,7 +5,7 @@ use std::collections::HashMap;
 pub struct Config {
   pub bots: HashMap<String, Bot>,
   pub account: Account,
-  pub db: DB,
+  pub db: Db,
 }
 
 #[derive(Deserialize)]
@@ -20,6 +20,17 @@ pub struct Account {
 }
 
 #[derive(Deserialize)]
-pub struct DB {
-  pub url: String,
+pub struct Db {
+  pub user: String,
+  pub pass: String,
+  pub hostname: String,
+  pub database: String,
+}
+impl Db {
+  pub fn database_url(&self) -> String {
+    format!(
+      "postgres://{}:{}@{}/{}",
+      self.user, self.pass, self.hostname, self.database
+    )
+  }
 }

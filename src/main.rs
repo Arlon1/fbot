@@ -16,9 +16,14 @@ use tokio::task::block_in_place;
 
 mod bots;
 pub mod config;
-pub mod instant_waiter;
-pub mod string_storage;
-use instant_waiter::*;
+
+mod lib;
+use lib::*;
+
+#[macro_use]
+extern crate diesel;
+pub mod models;
+pub mod schema;
 
 #[derive(Debug, Clap)]
 #[clap(setting(clap::AppSettings::ColoredHelp))]
@@ -46,20 +51,19 @@ async fn run() -> Result<()> {
   let conf: config::Config = serde_dhall::from_file(opt.config_file).parse()?;
 
   let mutex_urbandictionary = Mutex::new(InstantWaiter::new(Duration::from_secs(2)));
-  let mutex_rita_be = Mutex::new(string_storage::StringStorage::new(
-    "        Dr. Ritarost".to_owned(),
-  ));
+  //let mutex_rita_be = Mutex::new(string_storage::StringStorage::new(
+  //  "        Dr. Ritarost".to_owned(),
+  //));
+  let conn = Mutex::new(establish_connection(conf.db));
 
   let bots_available: Vec<(_, Box<dyn Bot + Send + Sync>)> = vec![
     ("rubenbot", Box::new(bots::rubenbot::rubenbot())),
     (
       "ritabot",
-      Box::new(bots::ritabot::ritabot(mutex_urbandictionary, mutex_rita_be)),
+      Box::new(bots::ritabot::ritabot(mutex_urbandictionary, conn)),
     ),
   ];
   let bots_available = bots_available.into_iter().collect::<HashMap<_, _>>();
-
-  //PgConnection::establish(&conf.db.url).expect(&format!("Error connecting to {}", conf.db.url));
 
   let mut bots = vec![];
   let mut channels = HashSet::new();
@@ -199,4 +203,10 @@ fn process_post(recv_post: &RecvPost, bots: &[impl bots::Bot]) -> Vec<String> {
     }
   }
   posts
+}
+
+fn establish_connection(db: config::Db) -> PgConnection {
+  let postgres_url = db.database_url();
+
+  PgConnection::establish(&postgres_url).expect(&format!("Error connecting to {}", postgres_url))
 }

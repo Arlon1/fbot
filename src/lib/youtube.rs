@@ -6,26 +6,6 @@ use serde_json::value::Value;
 use std::process::Command;
 use url::Url;
 
-use super::{simple_enhancer, LinkEnhancer};
-
-pub fn youtube_link_enhancer() -> impl LinkEnhancer {
-  simple_enhancer(|(stated_url, extra_texts)| {
-    let mut stated_url = stated_url.clone();
-    let mut extra_texts = extra_texts.clone();
-
-    if let Some(y) = Youtube::from_url(&stated_url.get_url()) {
-      if y.was_enhanced {
-        stated_url.set_url(y.to_url());
-      }
-
-      if let Some(a) = y.annotation() {
-        extra_texts.push(a);
-      }
-    }
-    (stated_url, extra_texts)
-  })
-}
-
 #[derive(serde::Deserialize, Debug, Clone)]
 struct SingleVideo {
   title: String,
@@ -35,7 +15,7 @@ struct SingleVideo {
 }
 
 #[derive(Debug)]
-struct Youtube {
+pub struct Youtube {
   vid_id: String,
   start_time: Option<Duration>,
 
@@ -142,6 +122,9 @@ impl Youtube {
     Some(Duration::seconds(
       self.metadata.as_ref()?.duration.as_ref()?.as_i64()?,
     ))
+  }
+  pub fn was_enhanced(&self) -> bool {
+    self.was_enhanced
   }
   fn format_duration(&self) -> Option<String> {
     let duration = self.duration()?;
@@ -264,7 +247,7 @@ impl Youtube {
 
     channel = channel.map(|channel| {
       if let Some(ch) = channel.strip_suffix(" - Topic") {
-        ch.clone().to_owned()
+        ch.to_owned()
       } else {
         channel
       }

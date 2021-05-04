@@ -4,9 +4,9 @@ use urlencoding::encode;
 pub mod stated_url;
 use stated_url::StatedUrl;
 mod wikipedia;
-mod youtube;
 
 use crate::bots::*;
+use wikipedia::wikipedia_enhancer;
 
 pub trait LinkEnhancer {
   fn enhance(&self, arg: &(StatedUrl, Vec<String>)) -> (StatedUrl, Vec<String>);
@@ -46,15 +46,9 @@ fn qedchat_link_encode() -> impl LinkEnhancer {
 pub fn rubenbot() -> impl Bot {
   simple_bot(move |recv_post| {
     let enhancers: Vec<(_, Box<dyn LinkEnhancer + Send + Sync>)> = vec![
-      (
-        "wikipedia_enhancer",
-        Box::new(wikipedia::wikipedia_enhancer()),
-      ),
+      ("wikipedia_enhancer", Box::new(wikipedia_enhancer())),
       //("qedchat_link_encode", Box::new(qedchat_link_encode())),
-      (
-        "youtube_enhancer",
-        Box::new(youtube::youtube_link_enhancer()),
-      ),
+      ("youtube_enhancer", Box::new(youtube_link_enhancer())),
       ("qedgallery", Box::new(qedgallery())),
     ];
 
@@ -131,5 +125,23 @@ fn qedgallery() -> impl LinkEnhancer {
     }
 
     (stated_url, extra_texts.clone())
+  })
+}
+
+pub fn youtube_link_enhancer() -> impl LinkEnhancer {
+  simple_enhancer(|(stated_url, extra_texts)| {
+    let mut stated_url = stated_url.clone();
+    let mut extra_texts = extra_texts.clone();
+
+    if let Some(y) = crate::youtube::Youtube::from_url(&stated_url.get_url()) {
+      if y.was_enhanced() {
+        stated_url.set_url(y.to_url());
+      }
+
+      if let Some(a) = y.annotation() {
+        extra_texts.push(a);
+      }
+    }
+    (stated_url, extra_texts)
   })
 }

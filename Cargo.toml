@@ -11,7 +11,7 @@ qedchat = { git = "https://git.amesgen.de/amesgen/qedchat-rs.git", rev = "484d8a
 anyhow = "1"
 log = "0.4"
 env_logger = "0.8"
-clap = "3.0.0-beta.2"
+clap = "3.0.0-beta"
 chrono = "0.4"
 futures = "0.3"
 tokio = { version = "1", features = ["full"] }
@@ -22,13 +22,13 @@ url = "2"
 regex = "1"
 rustyline = "8"
 urlencoding = "1"
-reqwest = "0.11.2"
-serde_json = "1.0.64"
+reqwest = "0.11"
+serde_json = "1.0"
 ratelimit_meter = "5.0.0"
-thiserror = "1.0.24"
-sha-1 = "0.9.4"
-generic-array = "0.14.4"
-diesel = {version = "1.4.6", features = ["postgres"]}
+thiserror = "1.0"
+sha-1 = "0.9"
+generic-array = "0.14"
+diesel = {version = "1.4", features = ["postgres"]}
 
 
 [profile.release]

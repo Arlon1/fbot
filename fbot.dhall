@@ -7,4 +7,6 @@ in  { bots =
       }
     , account =
       { user = env:fbot_user as Text ? "", pass = env:fbot_pass as Text ? "" }
+    , db =
+      { user = "fbot", pass = "", hostname = "localhost", database = "fbot" }
     }
