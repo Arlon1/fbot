@@ -35,6 +35,7 @@ def processMessage(args, rawMessage, db_connection):
 		return
 
 	elif args[1].lower().startswith('sing'):
+		return
 		parser = argparse.ArgumentParser(prog='!rita sing')
 		parser.add_argument('song', nargs='?')
 		parser.add_argument('-l', '--learn', action='store_true', dest='learn')
