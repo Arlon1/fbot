@@ -90,7 +90,7 @@ pub fn sing(mode: Option<SingMode>, post: &qedchat::RecvPost, conn: &PgConnectio
             //    .map(|s| "\n".to_owned() + &s)
             //    .unwrap_or("".to_owned())
             //)
-            "ich kann jetzt singen".to_owned()
+            "ich kann jetzt was neues singen.".to_owned()
           }
           Err(err) => match err {
             diesel::result::Error::DatabaseError(e, _) => match e {

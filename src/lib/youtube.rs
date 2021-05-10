@@ -75,16 +75,18 @@ impl Youtube {
     }
   }
   pub fn from_url(url: &Url) -> Option<Self> {
+    let vid_id_length = 11;
     let re_hostname = Regex::new(r"(www\.)?(youtube\.com)").expect("invalid regex");
     let re_hostname_shortened = Regex::new(r"youtu\.be").expect("invialid regex");
 
     if re_hostname.is_match(&url.host_str().unwrap_or("")) {
-      let vid_id = url
+      let mut vid_id = url
         .query_pairs()
         .filter(|pair| pair.clone().0 == "v")
         .map(|pair| pair.1)
         .last()?
         .to_string();
+      vid_id.truncate(vid_id_length);
       Some(
         Self::new(url, vid_id)
           .map_err(|err| {
@@ -93,7 +95,8 @@ impl Youtube {
           .ok()?,
       )
     } else if re_hostname_shortened.is_match(&url.host_str().unwrap_or("")) {
-      let vid_id = url.path().to_owned();
+      let mut vid_id = url.path().to_owned();
+      vid_id.truncate(vid_id_length);
       Some(
         Self::new(url, vid_id)
           .map_err(|err| error!("{}", err))
