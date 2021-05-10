@@ -28,7 +28,8 @@ ratelimit_meter = "5.0.0"
 thiserror = "1.0"
 sha-1 = "0.9"
 generic-array = "0.14"
-diesel = {version = "1.4", features = ["postgres"]}
+diesel = {version = "1.4", features = ["chrono", "postgres"]}
+impl-enum = "0.2.0"
 
 
 [profile.release]

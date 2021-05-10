@@ -3,11 +3,12 @@ use itertools::Itertools;
 use log::error;
 use regex::Regex;
 use serde_json::value::Value;
-use std::process::Command;
 use url::Url;
 
+use super::youtube_dl::*;
+
 #[derive(serde::Deserialize, Debug, Clone)]
-struct SingleVideo {
+struct YoutubeDlVideo {
   title: String,
   channel: Option<String>,
   duration: Option<Value>,
@@ -22,7 +23,7 @@ pub struct Youtube {
   was_enhanced: bool,
   url: Url,
 
-  metadata: Option<SingleVideo>,
+  metadata: Option<YoutubeDlVideo>,
 }
 impl Youtube {
   fn new(url: &Url, vid_id: String) -> Result<Self, String> {
@@ -38,51 +39,39 @@ impl Youtube {
       was_enhanced = true;
     }
 
-    if let Ok(output) = Command::new("youtube-dl")
-      .args(&["-j", &url.to_string()])
-      .output()
-      .map_err(|err| err.to_string())
-    {
-      if !output.status.success() {
-        error!(
-          "youtube-dl exited with {} and said\n{}\nurl was {}",
-          match output.status.code() {
-            Some(code) => format!("Exited with status code: {}", code),
-            None => format!("Process terminated by signal"),
-          },
-          String::from_utf8_lossy(&output.stderr),
-          url.to_string()
-        );
+    match youtube_dl(&url) {
+      Ok(output) => {
+        let metadata: Option<YoutubeDlVideo> =
+          Some(serde_json::from_str(&output).map_err(|err| err.to_string())?);
+        let start_time = {
+          if let Some(metadata) = &metadata {
+            Some(Duration::seconds(metadata.start_time.unwrap_or(0.0) as i64))
+          } else {
+            None
+          }
+        };
+
+        Ok(Self {
+          vid_id,
+          start_time,
+          url: url.to_owned(),
+          was_enhanced,
+          metadata,
+        })
       }
-
-      let metadata: Option<SingleVideo> = Some(
-        serde_json::from_str(&String::from_utf8_lossy(&output.stdout))
-          .map_err(|err| err.to_string())?,
-      );
-      let start_time = {
-        if let Some(metadata) = &metadata {
-          Some(Duration::seconds(metadata.start_time.unwrap_or(0.0) as i64))
-        } else {
-          None
+      Err(err) => match err {
+        YoutubeDlError::NetworkError => {
+          let start_time = Self::parse_start_time_from_url(&url);
+          Ok(Self {
+            vid_id,
+            start_time,
+            url: url.to_owned(),
+            was_enhanced,
+            metadata: None,
+          })
         }
-      };
-
-      Ok(Self {
-        vid_id,
-        start_time,
-        url: url.to_owned(),
-        was_enhanced,
-        metadata,
-      })
-    } else {
-      let start_time = Self::parse_start_time_from_url(&url);
-      Ok(Self {
-        vid_id,
-        start_time,
-        url: url.to_owned(),
-        was_enhanced,
-        metadata: None,
-      })
+        _ => Err(err.to_string()),
+      },
     }
   }
   pub fn from_url(url: &Url) -> Option<Self> {
@@ -263,9 +252,8 @@ impl Youtube {
     channel = channel.map(|ch| "– ".to_owned() + &ch);
 
     if title.as_ref().cloned().unwrap_or("".to_owned()).len()
-      + 1
       + channel.as_ref().cloned().unwrap_or("".to_owned()).len()
-      > max_len
+      <= max_len
     {
       Some(
         [
@@ -282,7 +270,7 @@ impl Youtube {
       let ch_tr = truncate_render(channel, channel_max_len).map(|(s, _)| s);
       if &title.as_ref().cloned().unwrap_or("".to_owned()).len()
         + ch_tr.as_ref().cloned().unwrap_or("".to_owned()).len()
-        < max_len
+        <= max_len
       {
         Some(
           [

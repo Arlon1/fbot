@@ -1,10 +1,10 @@
-use crate::{bots::*, lib::*, models, schema::sing as table_sing /*::dsl::**/};
+use crate::{bots::*, lib::*};
+
 use clap::Clap;
-use diesel::{prelude::*, PgConnection};
+use diesel::PgConnection;
 use log::error;
 use sha1::{Digest, Sha1};
 use std::sync::Mutex;
-use url::Url;
 
 mod dual_error;
 mod sing;
@@ -77,44 +77,7 @@ pub fn ritabot(
         let c = conn.lock().unwrap();
         let cc = c.deref();
 
-        fn annotation(url: Url) -> Option<String> {
-          let y = Youtube::from_url(&url)?;
-          Some(y.annotation()?)
-        }
-
-        let m = mode.unwrap_or(SingMode::Sing);
-        match m {
-          SingMode::Sing => {
-            let url: String =
-              diesel::dsl::sql_query("SELECT * FROM sing ORDER BY random() LIMIT 1;")
-                .get_result::<models::Sing>(cc)?
-                .url;
-            if let Some(url_obj) = Url::parse(&url).ok() {
-              match annotation(url_obj) {
-                Some(text) => format!("{}\n{}", url, text),
-                None => url,
-              }
-            } else {
-              url
-            }
-          }
-          SingMode::Learn { url } => {
-            if let Some(url_obj) = Url::parse(&url).ok() {
-              diesel::insert_into(table_sing::table)
-                .values(models::Sing { url: url.clone() })
-                .get_result::<models::Sing>(cc)?;
-              format!(
-                "Ich kann was Neues singen.{}",
-                annotation(url_obj)
-                  .map(|s| "\n".to_owned() + &s)
-                  .unwrap_or("".to_owned())
-              )
-            } else {
-              "Gib eine URL an".to_owned()
-            }
-          }
-          SingMode::Count => format!("Ich kann schon {} Lieder singen.", sing_count(cc)),
-        }
+        sing(mode, post, cc)
       }
       Say { a } => {
         format!("{:?}", a)

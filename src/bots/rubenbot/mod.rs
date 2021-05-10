@@ -58,7 +58,7 @@ pub fn rubenbot() -> impl Bot {
       .split_whitespace()
       //.split("")
       .map(|url_str| {
-        dbg!(&url_str);
+        log::debug!("{}", &url_str);
         Url::parse(url_str)
       })
       .flatten()

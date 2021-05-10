@@ -6,6 +6,7 @@ use anyhow::Result;
 use clap::{AppSettings, Clap};
 use itertools::Itertools;
 use qedchat::{BotTag, Post, RecvPost, SendPost};
+use regex::Regex;
 use std::{collections::HashSet, ops::Deref};
 
 const CMD_PREFIX: &str = "!";
@@ -88,10 +89,15 @@ pub fn clap_bot<C: Clap>(
             s.as_str()
           };
 
-          Some(
-            e.replace("\n\n", "\n")
-              .replace("\nFor more information try --help\n", ""),
+          let e = e
+            .replace("\n\n", "\n")
+            .replace("\nFor more information try --help\n", "");
+          let re_help = Regex::new(
+            r"If you tried to supply `[[:alnum:]]+` as a PATTERN use `-- [[:alnum:]]+`\n",
           )
+          .expect("invalid regex");
+          let e = re_help.replace_all(&e, "").to_string();
+          Some(e)
         }
       };
       Ok(msg.map(|msg| (nick_name.clone(), msg)))
