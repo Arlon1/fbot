@@ -93,7 +93,9 @@ pub fn clap_bot<C: Clap>(
             .replace("\n\n", "\n")
             .replace("\nFor more information try --help\n", "");
           let re_help = Regex::new(
-            r"If you tried to supply `[[:alnum:]]+` as a PATTERN use `-- [[:alnum:]]+`\n",
+            r"If you tried to supply `[^`]+` as a PATTERN use `[^`]+`\n
+|
+If you believe you received this message in error, try re-running with '[^']+'",
           )
           .expect("invalid regex");
           let e = re_help.replace_all(&e, "").to_string();

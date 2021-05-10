@@ -55,6 +55,9 @@ pub fn rubenbot() -> impl Bot {
     let send_posts = recv_post
       .post
       .message
+      .split("\n")
+      .filter(|line| !line.starts_with("!"))
+      .join("\n")
       .split_whitespace()
       //.split("")
       .map(|url_str| {

@@ -1,5 +1,6 @@
 use crate::{lib::Youtube, models, schema /* schema::sing::dsl::* */};
 
+use chrono::offset::Local;
 use clap::Clap;
 use diesel::{prelude::*, result::DatabaseErrorKind, PgConnection};
 use url::Url;
@@ -49,6 +50,11 @@ pub fn sing(mode: Option<SingMode>, post: &qedchat::RecvPost, conn: &PgConnectio
       }
       let url = url_res.expect("Error loading random url from `sing`").url;
 
+      diesel::update(schema::sing::table.filter(schema::sing::dsl::url.eq(&url)))
+        .set(schema::sing::dsl::last_access.eq(Local::now()))
+        .execute(conn)
+        .expect("Updating last access for url failed");
+
       if let Some(url_obj) = Url::parse(&url).ok() {
         match annotation(url_obj) {
           Some(text) => format!("{}\n{}", url, text),
@@ -59,7 +65,7 @@ pub fn sing(mode: Option<SingMode>, post: &qedchat::RecvPost, conn: &PgConnectio
       }
     }
     SingMode::Learn { url } => {
-      if let Some(_) = Url::parse(&url).ok() {
+      if let Some(url_obj) = Url::parse(&url).ok() {
         match diesel::insert_into(schema::sing::table)
           .values(models::Sing {
             url: url.clone(),
@@ -84,13 +90,12 @@ pub fn sing(mode: Option<SingMode>, post: &qedchat::RecvPost, conn: &PgConnectio
               1=>{},
               _ => {},
             }*/
-            //format!(
-            //  "Ich kann was Neues singen.{}",
-            //  annotation(url_obj)
-            //    .map(|s| "\n".to_owned() + &s)
-            //    .unwrap_or("".to_owned())
-            //)
-            "ich kann jetzt was neues singen.".to_owned()
+            format!(
+              "Ich kann was Neues singen.{}",
+              annotation(url_obj)
+                .map(|s| "\n".to_owned() + &s)
+                .unwrap_or("".to_owned())
+            )
           }
           Err(err) => match err {
             diesel::result::Error::DatabaseError(e, _) => match e {
