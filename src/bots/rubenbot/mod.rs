@@ -52,28 +52,31 @@ pub fn rubenbot() -> impl Bot {
       ("qedgallery", Box::new(qedgallery())),
     ];
 
-    let send_posts = recv_post
-      .post
-      .message
-      .split("\n")
-      .filter(|line| !line.starts_with("!"))
-      .join("\n")
-      .split_whitespace()
-      //.split("")
-      .map(|url_str| {
-        log::debug!("{}", &url_str);
-        Url::parse(url_str)
-      })
-      .flatten()
-      .map(|url| StatedUrl::new(url))
-      .filter(|su| vec!["http", "https"].contains(&su.get_url().to_owned().scheme()))
-      .map(|su| (su, vec![]))
-      .map(|(su, et)| {
-        enhancers
-          .iter()
-          .fold((su, et), |(su, et), enhancer| enhancer.1.enhance(&(su, et)))
-      })
-      .collect::<Vec<(StatedUrl, Vec<String>)>>();
+    let send_posts = {
+      if !recv_post.post.message.starts_with("!") {
+        recv_post
+          .post
+          .message
+          .split_whitespace()
+          //.split("")
+          .map(|url_str| {
+            log::debug!("{}", &url_str);
+            Url::parse(url_str)
+          })
+          .flatten()
+          .map(|url| StatedUrl::new(url))
+          .filter(|su| vec!["http", "https"].contains(&su.get_url().to_owned().scheme()))
+          .map(|su| (su, vec![]))
+          .map(|(su, et)| {
+            enhancers
+              .iter()
+              .fold((su, et), |(su, et), enhancer| enhancer.1.enhance(&(su, et)))
+          })
+          .collect::<Vec<(StatedUrl, Vec<String>)>>()
+      } else {
+        vec![]
+      }
+    };
 
     let enhanced_urls = send_posts
       .clone()

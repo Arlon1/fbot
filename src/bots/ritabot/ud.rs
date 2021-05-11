@@ -31,19 +31,20 @@ pub fn ud_lookup(
   .map_err(|e| DualError::new("error: no text received".to_owned(), e.to_string()))?;
   let obj: serde_json::value::Value = serde_json::from_str(&obj)
     .map_err(|e| DualError::new("parsing error".to_owned(), e.to_string()))?;
-  Ok(
-    obj
-      .get("list")
-      .context("parsing error")?
-      .as_array()
-      .context("parsing error")?
-      .iter()
-      .nth(0)
-      .context("kenne ich nicht")?
-      .get("definition")
-      .context("no definitions available")?
-      .as_str()
-      .context("parsing error")?
-      .to_owned(),
-  )
+  let mut definition = obj
+    .get("list")
+    .context("parsing error")?
+    .as_array()
+    .context("parsing error")?
+    .iter()
+    .nth(0)
+    .context("kenne ich nicht")?
+    .get("definition")
+    .context("no definitions available")?
+    .as_str()
+    .context("parsing error")?
+    .to_owned();
+  definition.retain(|c| !['[', ']'].contains(&c));
+
+  Ok(definition)
 }
