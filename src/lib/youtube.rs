@@ -1,4 +1,5 @@
 use chrono::Duration;
+use diesel_chrono_duration::ChronoDurationProxy;
 use itertools::Itertools;
 use log::error;
 use regex::Regex;
@@ -23,7 +24,7 @@ pub struct Youtube {
   was_enhanced: bool,
   url: Url,
 
-  metadata: Option<YoutubeDlVideo>,
+  yt_dl: Option<YoutubeDlVideo>,
 }
 impl Youtube {
   fn new(url: &Url, vid_id: String) -> Result<Self, String> {
@@ -56,7 +57,7 @@ impl Youtube {
           start_time,
           url: url.to_owned(),
           was_enhanced,
-          metadata,
+          yt_dl: metadata,
         })
       }
       Err(err) => match err {
@@ -67,7 +68,7 @@ impl Youtube {
             start_time,
             url: url.to_owned(),
             was_enhanced,
-            metadata: None,
+            yt_dl: None,
           })
         }
         _ => Err(err.to_string()),
@@ -106,13 +107,15 @@ impl Youtube {
       None
     }
   }
-
-  fn title(&self) -> Option<String> {
-    Some(self.metadata.as_ref()?.title.to_owned())
+  pub fn title(&self) -> Option<String> {
+    Some(self.yt_dl.as_ref()?.title.to_owned())
+  }
+  pub fn channel(&self) -> Option<String> {
+    self.yt_dl.as_ref()?.channel.to_owned()
   }
   fn duration(&self) -> Option<Duration> {
     Some(Duration::seconds(
-      self.metadata.as_ref()?.duration.as_ref()?.as_i64()?,
+      self.yt_dl.as_ref()?.duration.as_ref()?.as_i64()?,
     ))
   }
   pub fn was_enhanced(&self) -> bool {
@@ -225,7 +228,7 @@ impl Youtube {
 
     let title = self.title();
     let mut channel = self
-      .metadata
+      .yt_dl
       .clone()
       .map(|m| {
         if let Some(channel) = m.channel {
@@ -291,6 +294,31 @@ impl Youtube {
         Some([title_tr, ch_tr, duration].iter().flatten().join(" "))
       }
     }
+  }
+  pub fn to_metadata(&self) -> crate::models::UrlMetadata {
+    crate::models::UrlMetadata {
+      url: self.to_url().to_string(),
+      title: self.title(),
+      author: self.channel(),
+      duration: self.duration().map(|dur| ChronoDurationProxy(dur)),
+    }
+  }
+  pub fn from_metadata(metadata: &crate::models::UrlMetadata) -> Self {
+    Self {
+      vid_id: "".to_owned(),
+      start_time: None,
+      was_enhanced: false,
+      url: Url::parse(&metadata.url)
+        .expect("Error parsing url obj from database. Something's wrong here."),
+
+      yt_dl: None,
+    }
+  }
+}
+
+impl std::cmp::PartialEq for Youtube {
+  fn eq(&self, other: &Self) -> bool {
+    self.url == other.url
   }
 }
 

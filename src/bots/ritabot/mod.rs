@@ -14,10 +14,7 @@ use dual_error::*;
 use sing::*;
 use ud::*;
 
-pub fn ritabot(
-  execution_last: Mutex<InstantWaiter>,
-  conn: Mutex<PgConnection>,
-) -> impl Bot + 'static {
+pub fn ritabot(execution_last: Mutex<InstantWaiter>, conn: &Mutex<PgConnection>) -> impl Bot + '_ {
   #[derive(Clap)]
   enum Opt {
     Ping {},
@@ -74,7 +71,7 @@ pub fn ritabot(
         //format!("Ich bin jetzt {}", name)
       }*/
       Sing { mode } => {
-        let c = conn.lock().unwrap();
+        let c = conn.lock().expect("could not get lock");
         let cc = c.deref();
 
         sing(mode, post, cc)

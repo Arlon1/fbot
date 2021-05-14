@@ -77,7 +77,9 @@ pub fn clap_bot<C: Clap>(
     .version("")
     .long_version("");
   simple_bot(move |post| match util::tokenize_args(&post.post.message) {
-    Some(args) if args.first() == Some(&cmd_name) => {
+    Some(args)
+      if args.first().as_ref().map(|arg| arg.to_lowercase()) == Some(cmd_name.to_lowercase()) =>
+    {
       let msg = match app.clone().try_get_matches_from(args.into_iter().skip(1)) {
         Ok(matches) => f(C::from_arg_matches(&matches), &post)?,
         Err(e) => {
@@ -93,7 +95,7 @@ pub fn clap_bot<C: Clap>(
             .replace("\n\n", "\n")
             .replace("\nFor more information try --help\n", "");
           let re_help = Regex::new(
-            r"If you tried to supply `[^`]+` as a PATTERN use `[^`]+`\n
+            r"If you tried to supply `[^`]+` as a PATTERN use `[^`]+`
 |
 If you believe you received this message in error, try re-running with '[^']+'",
           )

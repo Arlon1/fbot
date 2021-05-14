@@ -30,6 +30,8 @@ sha-1 = "0.9"
 generic-array = "0.14"
 diesel = {version = "1.4", features = ["chrono", "postgres"]}
 impl-enum = "0.2.0"
+diesel-chrono-duration = "1.0.0"
+csv = "1.1.6"
 
 
 [profile.release]
