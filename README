@@ -1,3 +1,8 @@
+########################################
+rusty_rita (branch `rust`) can be found at
+https://github.com/Arlon1/fbot/tree/rust
+########################################
+
 # create the db file
 sqlite3 varspace/fbotdb.sqlite # paste the .schema here
 
