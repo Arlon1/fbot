@@ -1,5 +1,6 @@
 use crate::{lib::Youtube, models, schema};
 
+use anyhow::Result;
 use chrono::offset::Local;
 use clap::Clap;
 use diesel::{prelude::*, result::DatabaseErrorKind, PgConnection};
@@ -14,20 +15,107 @@ pub enum SingMode {
   Learn {
     url: String,
   },
+  #[clap(aliases = &["repl"])]
   Replace {
     oldurl: String,
     newurl: String,
   },
+  #[clap(aliases = &["r", "del", "delete", "forget"])]
   Remove {
     url: String,
   },
 
+  #[clap(alias = "c")]
   Count,
 }
 
-fn annotation(url: Url) -> Option<String> {
-  let y = Youtube::from_url(&url)?;
-  Some(y.annotation()?)
+fn annotation_from_metadata(metadata: Option<models::UrlMetadata>) -> Option<String> {
+  Youtube::from_metadata(&metadata?)?.annotation()
+}
+
+fn insert_or_update_metadata(
+  url: &Url,
+  post: &RecvPost,
+  conn: &PgConnection,
+) -> Result<Option<models::UrlMetadata>> {
+  let url_obj = url;
+  let url = url_obj.to_string();
+
+  let urls_list = schema::url__::table
+    .filter(schema::url__::dsl::url.eq(&url))
+    .load::<models::Urls>(conn)
+    .expect("Error loading urls");
+
+  let update_metadata = match urls_list.len() {
+    0 => {
+      diesel::insert_into(schema::url__::table)
+        .values(models::Urls {
+          url: url.to_owned(),
+          last_updated: post.date.naive_local(),
+        })
+        .execute(conn)
+        .expect("Error creating an metadata entry for `url`");
+      true
+    }
+
+    _ => {
+      urls_list[0]
+        .last_updated
+        .signed_duration_since(Local::now().naive_local())
+        .num_weeks()
+        >= 12
+    }
+  };
+
+  let old_metadata = &schema::url_metadata::table
+    .filter(schema::url_metadata::url.eq(&url))
+    .load::<models::UrlMetadata>(conn)
+    .expect("Error querying url_metadata")
+    .last()
+    .to_owned()
+    .cloned();
+
+  diesel::update(schema::url__::table.filter(schema::url__::dsl::url.eq(&url)))
+    .set(schema::url__::dsl::last_updated.eq(Local::now()))
+    .execute(conn)
+    .expect("Error updating `last_updated` in table `urls`");
+
+  let y = Youtube::from_url(&url_obj).map(|y| y.to_metadata());
+
+  Ok(if update_metadata {
+    if old_metadata != &y {
+      if let Some(new_metadata) = y {
+        match old_metadata {
+          None => {
+            let query = diesel::insert_into(schema::url_metadata::table).values(&new_metadata);
+            query
+              .execute(conn)
+              .expect("Could not insert into url_metadata");
+            Some(new_metadata)
+          }
+          Some(_) => {
+            diesel::update(
+              schema::url_metadata::table.filter(schema::url_metadata::dsl::url.eq(&url)),
+            )
+            .set(&new_metadata)
+            .execute(conn)
+            .expect("Could not update url_metadata");
+            Some(new_metadata)
+          }
+        }
+      } else {
+        diesel::delete(schema::url_metadata::table)
+          .filter(schema::url_metadata::dsl::url.eq(&url))
+          .execute(conn)
+          .expect("Could not delete from url_metadata");
+        None
+      }
+    } else {
+      old_metadata.to_owned()
+    }
+  } else {
+    old_metadata.to_owned()
+  })
 }
 
 fn sing_url(post: &RecvPost, conn: &PgConnection) -> String {
@@ -45,18 +133,35 @@ fn sing_url(post: &RecvPost, conn: &PgConnection) -> String {
     .execute(conn)
     .expect("Updating last access for url failed");
 
-  if let Some(url_obj) = Url::parse(&url).ok() {
-    match annotation(url_obj) {
-      Some(text) => format!("{}\n{}", url, text),
-      None => url,
+  match schema::url_metadata::table
+    .filter(schema::url_metadata::url.eq(&url))
+    .get_result::<models::UrlMetadata>(conn)
+  {
+    Ok(metadata) => {
+      format!("{}{}", url, {
+        annotation_from_metadata(Some(metadata))
+          .map(|s| format!("\n{}", s))
+          .unwrap_or("".to_owned())
+      })
     }
-  } else {
-    url
+    Err(err) => match err {
+      diesel::result::Error::NotFound => url,
+      _ => {
+        log::error!("{}", err);
+        url
+      }
+    },
   }
 }
 
 fn learn_url(url: &str, post: &RecvPost, conn: &PgConnection) -> String {
+  let mut url = url.to_owned();
+  if !url.starts_with("http") {
+    url = "https://".to_owned() + &url;
+  }
+
   if let Some(url_obj) = Url::parse(&url).ok() {
+    // inserts url into table `sing`
     match diesel::insert_into(schema::sing::table)
       .values(models::Sing {
         url: url.to_owned(),
@@ -71,67 +176,23 @@ fn learn_url(url: &str, post: &RecvPost, conn: &PgConnection) -> String {
       .execute(conn)
     {
       Ok(_) => {
-        let urls_list = schema::url__::table
-          .filter(schema::url__::dsl::url.eq(&url))
-          .load::<models::Urls>(conn)
-          .expect("Error loading urls");
-        dbg!(&urls_list);
-        let url_value = match urls_list.len() {
-          0 => diesel::insert_into(schema::url__::table)
-            .values(models::Urls {
-              url: url.to_owned(),
-              last_updated: Local::now().naive_local(),
-            })
-            .get_result::<models::Urls>(conn)
-            .expect("Error creating an metadata entry for `url`"),
+        let metadata = insert_or_update_metadata(&url_obj, post, conn)
+          .ok()
+          .flatten();
 
-          _ => urls_list[0].clone(),
-        };
-
-        if url_value
-          .last_updated
-          .signed_duration_since(Local::now().naive_local())
-          .num_weeks()
-          >= 4
-        {
-          let y = Youtube::from_url(&url_obj).unwrap(); // todo (unwrap)
-
-          let metadata = &schema::url_metadata::table
-            .filter(schema::url_metadata::url.eq(&url))
-            .load::<models::UrlMetadata>(conn)
-            .expect("Error querying url_metadata")[0];
-
-          if y != Youtube::from_metadata(metadata) {
-            diesel::update(
-              schema::url_metadata::table.filter(schema::url_metadata::dsl::url.eq(&url)),
-            )
-            .set((
-              schema::url_metadata::dsl::title.eq(y.title()),
-              schema::url_metadata::dsl::author.eq(y.channel()),
-            ))
-            .execute(conn)
-            .expect("");
+        format!("Ich kann jetzt was Neues singen:{}", {
+          match annotation_from_metadata(metadata) {
+            Some(annotation) => format!("\n{}", &annotation),
+            None => format!(" {}", url),
           }
-
-          diesel::update(schema::url__::table.filter(schema::url__::dsl::url.eq(&url)))
-            .set(schema::url__::dsl::last_updated.eq(Local::now()))
-            .execute(conn)
-            .expect("Error updating `last_updated` in table `urls`");
-        }
-
-        format!(
-          "Ich kann was Neues singen:{}",
-          annotation(url_obj)
-            .map(|s| "\n".to_owned() + &s)
-            .unwrap_or("".to_owned())
-        )
+        })
       }
       Err(err) => match err {
         diesel::result::Error::DatabaseError(e, _) => match e {
           DatabaseErrorKind::UniqueViolation => "kenn ich schon".to_owned(),
-          _ => "anderer Datenbank-Fehler".to_owned(),
+          _ => "Datenbank-Fehler. Tritt Franz und probier es später nochmal.".to_owned(),
         },
-        _ => "was ist das überhaupt für ein Fehler?".to_owned(),
+        _ => "diesel-Fehler. Tritt Franz und probier es später nochmal.".to_owned(),
       },
     }
   } else {
@@ -145,16 +206,16 @@ fn forget_url(url: &str, conn: &PgConnection) -> String {
     .expect("Error deleting sing url")
   {
     0 => "Kenn ich nicht".to_owned(),
-    _ => format!("ich habe vergessen was vergessen: {}", url),
+    _ => format!("Ich habe was vergessen: {}", url),
   }
 }
 
-fn sing_count(conn: &PgConnection) -> usize {
-  let count = schema::sing::table
-    .count()
-    .execute(conn)
-    .expect("could not load table");
-  count
+fn sing_count(conn: &PgConnection) -> Result<usize> {
+  Ok(
+    schema::sing::table
+      .select(diesel::dsl::count(schema::sing::dsl::url))
+      .execute(conn)?,
+  )
 }
 
 pub fn sing(mode: Option<SingMode>, post: &RecvPost, conn: &PgConnection) -> String {
@@ -166,10 +227,15 @@ pub fn sing(mode: Option<SingMode>, post: &RecvPost, conn: &PgConnection) -> Str
     SingMode::Remove { url } => forget_url(&url, conn),
 
     SingMode::Replace { oldurl, newurl } => {
-      forget_url(&oldurl, conn);
-      learn_url(&newurl, post, conn);
-      "ich habe x durch y ersetzt".to_owned()
+      format!(
+        "{}\n{}",
+        forget_url(&oldurl, conn),
+        learn_url(&newurl, post, conn)
+      )
     }
-    SingMode::Count => format!("Ich kann schon {} Lieder singen.", sing_count(conn)),
+    SingMode::Count => match sing_count(conn) {
+      Ok(count) => format!("Ich kann schon {} Lieder singen.", count),
+      Err(err) => format!("Datenbank-Fehler: {}", err),
+    },
   }
 }

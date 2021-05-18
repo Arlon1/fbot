@@ -1,5 +1,4 @@
 use url::Url;
-use urlencoding::encode;
 
 pub mod stated_url;
 use stated_url::StatedUrl;
@@ -23,24 +22,6 @@ fn simple_enhancer(
     }
   }
   SimpleEnhancer(f)
-}
-
-fn qedchat_link_encode() -> impl LinkEnhancer {
-  simple_enhancer(|(stated_url, extra_texts)| {
-    let mut stated_url = stated_url.clone();
-
-    let chars = ['(', ')'];
-
-    let mut url = stated_url.get_url();
-    let mut path_str = stated_url.get_url().path().to_owned();
-    for c in chars.iter() {
-      path_str = path_str.replace(c.to_owned(), &encode(&c.to_string()).to_owned());
-    }
-    url.set_path(&path_str);
-    stated_url.set_url(url);
-
-    (stated_url, extra_texts.clone())
-  })
 }
 
 pub fn rubenbot() -> impl Bot {
@@ -139,9 +120,16 @@ pub fn youtube_link_enhancer() -> impl LinkEnhancer {
     let mut stated_url = stated_url.clone();
     let mut extra_texts = extra_texts.clone();
 
-    if let Some(y) = crate::youtube::Youtube::from_url(&stated_url.get_url()) {
-      if y.was_enhanced() {
-        stated_url.set_url(y.to_url());
+    let url = &mut stated_url.get_url();
+    if let Some(y) = crate::youtube::Youtube::from_url(url) {
+      let query_filtered = url
+        .query_pairs()
+        .filter(|(key, _value)| !vec!["list", "index"].contains(&&key.to_owned().to_string()[..]))
+        .map(|(key, value)| key + "=" + value)
+        .join("&");
+      if url.query().unwrap_or("") != query_filtered {
+        url.set_query(Some(&query_filtered));
+        stated_url.set_url(y.to_url(true));
       }
 
       if let Some(a) = y.annotation() {

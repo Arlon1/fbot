@@ -4,6 +4,7 @@ use chrono::NaiveDateTime;
 use diesel::*;
 use diesel_chrono_duration::*;
 use serde::Deserialize;
+use std::cmp::PartialEq;
 
 #[derive(Debug, Insertable, Queryable, QueryableByName)]
 #[table_name = "sing"]
@@ -21,13 +22,22 @@ pub struct Urls {
   pub last_updated: NaiveDateTime,
 }
 
-#[derive(Debug, Insertable, Queryable, QueryableByName)]
+#[derive(AsChangeset, Clone, Debug, Insertable, Queryable, QueryableByName)]
 #[table_name = "url_metadata"]
 pub struct UrlMetadata {
   pub url: String,
   pub title: Option<String>,
   pub author: Option<String>,
   pub duration: Option<ChronoDurationProxy>,
+  pub start_time: Option<ChronoDurationProxy>,
+}
+impl PartialEq for UrlMetadata {
+  fn eq(&self, other: &Self) -> bool {
+    self.title == other.title
+      && self.author == other.author
+      && self.duration == other.duration
+      && self.start_time == other.start_time
+  }
 }
 
 #[derive(Debug, Deserialize, Insertable, Queryable, QueryableByName)]

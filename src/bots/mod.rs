@@ -1,3 +1,4 @@
+pub mod nickname;
 pub mod ritabot;
 pub mod rubenbot;
 mod util;

@@ -14,14 +14,13 @@ CREATE TABLE url_metadata (
 	url		Text 	PRIMARY KEY REFERENCES url__(url),
 	title		Text,
 	author		Text,
-	duration	BigInt
+	duration	BigInt,
+	start_time	BigInt
 );
 
 CREATE TABLE chatuser (
 	userid		Integer PRIMARY KEY,
-	username	Text NOT NULL,
-	  UNIQUE(username)
-
+	username	Text NOT NULL UNIQUE
 );
 CREATE OR REPLACE RULE ignore_duplicate_inserts_on_chatuser AS ON INSERT TO chatuser
   WHERE (EXISTS (SELECT 1 FROM chatuser WHERE new.userid = chatuser.userid))

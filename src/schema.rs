@@ -41,6 +41,7 @@ table! {
         title -> Nullable<Text>,
         author -> Nullable<Text>,
         duration -> Nullable<Int8>,
+        start_time -> Nullable<Int8>,
     }
 }
 
@@ -50,10 +51,10 @@ joinable!(nickname_preferred -> nickname__ (preferred));
 joinable!(url_metadata -> url__ (url));
 
 allow_tables_to_appear_in_same_query!(
-    chatuser,
-    nickname__,
-    nickname_preferred,
-    sing,
-    url__,
-    url_metadata,
+  chatuser,
+  nickname__,
+  nickname_preferred,
+  sing,
+  url__,
+  url_metadata,
 );

@@ -18,6 +18,8 @@ pub enum YoutubeDlError {
 
   #[error("Unable to download webpage: Name or service not known>")]
   NetworkError,
+  #[error("ERROR: No video formats found")]
+  NoVideoFormats,
 
   #[error("{0}")]
   CommandError(String),
@@ -65,6 +67,9 @@ pub fn youtube_dl(url: &Url) -> Result<String, YoutubeDlError> {
       }
 
       "ERROR: Unable to download API page: <urlopen error [Errno -2] Name or service not known> (caused by URLError(gaierror(-2, 'Name or service not known')))" => Err(YoutubeDlError::NetworkError)?,
+
+      "[ERROR] ERROR: No video formats found; please report this issue on https://yt-dl.org/bug . Make sure you are using the latest version; see  https://yt-dl.org/update  on how to update. Be sure to call youtube-dl with the --verbose flag and include its complete output.
+" => Err(YoutubeDlError::NoVideoFormats)?,
 
 
       _ => Err(YoutubeDlError::Other(stderr))?,

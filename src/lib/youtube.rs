@@ -4,6 +4,7 @@ use itertools::Itertools;
 use log::error;
 use regex::Regex;
 use serde_json::value::Value;
+use std::ops::Deref;
 use url::Url;
 
 use super::youtube_dl::*;
@@ -11,6 +12,7 @@ use super::youtube_dl::*;
 #[derive(serde::Deserialize, Debug, Clone)]
 struct YoutubeDlVideo {
   title: String,
+  //title: Option<String>,
   channel: Option<String>,
   duration: Option<Value>,
   start_time: Option<f64>,
@@ -21,24 +23,13 @@ pub struct Youtube {
   vid_id: String,
   start_time: Option<Duration>,
 
-  was_enhanced: bool,
-  url: Url,
-
   yt_dl: Option<YoutubeDlVideo>,
 }
 impl Youtube {
-  fn new(url: &Url, vid_id: String) -> Result<Self, String> {
-    let mut url = url.clone();
-    let mut was_enhanced = false;
-    let query_filtered = url
-      .query_pairs()
-      .filter(|(key, _value)| !vec!["list", "index"].contains(&&key.to_owned().to_string()[..]))
-      .map(|(key, value)| key + "=" + value)
-      .join("&");
-    if url.query().unwrap_or("") != query_filtered {
-      url.set_query(Some(&query_filtered));
-      was_enhanced = true;
-    }
+  fn new(url: &Url, vid_id: &mut String) -> Result<Self, String> {
+    let vid_id_length = 11;
+    vid_id.truncate(vid_id_length);
+    let vid_id = vid_id.deref().to_owned();
 
     match youtube_dl(&url) {
       Ok(output) => {
@@ -55,8 +46,6 @@ impl Youtube {
         Ok(Self {
           vid_id,
           start_time,
-          url: url.to_owned(),
-          was_enhanced,
           yt_dl: metadata,
         })
       }
@@ -66,8 +55,6 @@ impl Youtube {
           Ok(Self {
             vid_id,
             start_time,
-            url: url.to_owned(),
-            was_enhanced,
             yt_dl: None,
           })
         }
@@ -75,87 +62,50 @@ impl Youtube {
       },
     }
   }
-  pub fn from_url(url: &Url) -> Option<Self> {
-    let vid_id_length = 11;
+
+  pub fn parse_vid_id(url: &Url) -> Option<String> {
     let re_hostname = Regex::new(r"(www\.)?(youtube\.com)").expect("invalid regex");
     let re_hostname_shortened = Regex::new(r"youtu\.be").expect("invialid regex");
 
     if re_hostname.is_match(&url.host_str().unwrap_or("")) {
-      let mut vid_id = url
+      let vid_id = url
         .query_pairs()
         .filter(|pair| pair.clone().0 == "v")
         .map(|pair| pair.1)
         .last()?
         .to_string();
-      vid_id.truncate(vid_id_length);
-      Some(
-        Self::new(url, vid_id)
-          .map_err(|err| {
-            error!("{}", err);
-          })
-          .ok()?,
-      )
+      Some(vid_id)
     } else if re_hostname_shortened.is_match(&url.host_str().unwrap_or("")) {
-      let mut vid_id = url.path().to_owned();
-      vid_id.truncate(vid_id_length);
-      Some(
-        Self::new(url, vid_id)
-          .map_err(|err| error!("{}", err))
-          .ok()?,
-      )
+      let vid_id = url.path().to_owned();
+      Some(vid_id)
     } else {
       None
     }
   }
+
+  pub fn from_url(url: &Url) -> Option<Self> {
+    let mut vid_id = Self::parse_vid_id(url)?;
+    Self::new(url, &mut vid_id)
+      .map_err(|err| error!("{}", err))
+      .ok()
+  }
+
   pub fn title(&self) -> Option<String> {
     Some(self.yt_dl.as_ref()?.title.to_owned())
   }
   pub fn channel(&self) -> Option<String> {
     self.yt_dl.as_ref()?.channel.to_owned()
   }
-  fn duration(&self) -> Option<Duration> {
+  pub fn duration(&self) -> Option<Duration> {
     Some(Duration::seconds(
       self.yt_dl.as_ref()?.duration.as_ref()?.as_i64()?,
     ))
   }
-  pub fn was_enhanced(&self) -> bool {
-    self.was_enhanced
-  }
-  fn format_duration(&self) -> Option<String> {
-    let duration = self.duration()?;
-
-    let mut duration_str = "".to_owned();
-
-    let hours = duration.num_hours();
-    if hours > 0 {
-      duration_str += &format!("{}:", hours.to_string());
-    }
-
-    let min_gesamt = duration.num_minutes();
-    let min_display = min_gesamt - hours * 60 * 60;
-    if min_gesamt > 0 {
-      if duration_str.len() > 0 {
-        duration_str += &format!("{:02}:", min_display);
-      } else {
-        duration_str += &format!("{}:", min_display.to_string());
-      }
-    }
-
-    let s_gesamt = &duration.num_seconds();
-    let s_display = s_gesamt - min_gesamt * 60 - hours * 60 * 60;
-    if duration_str.len() > 0 {
-      duration_str += &format!("{:02}", s_display);
-    } else {
-      duration_str += &format!("{}s", s_display.to_string());
-    }
-
-    Some(duration_str)
-  }
-
   pub fn start_time(&self) -> Option<Duration> {
     self.start_time
   }
-  fn parse_start_time(start_time: String) -> Option<Duration> {
+
+  fn parse_start_time_parameter(start_time: String) -> Option<Duration> {
     let re_splitted =
       Regex::new("(?P<h>[[:digit:]]+h)?(?P<min>[[:digit:]]+min)?(?P<s>[[:digit:]]+s)")
         .expect("invalid_regex");
@@ -197,28 +147,37 @@ impl Youtube {
       .map(|pair| pair.1)
       .last()?
       .into_owned();
-    Self::parse_start_time(start_time)
+    Self::parse_start_time_parameter(start_time)
   }
+  fn format_duration(&self) -> Option<String> {
+    let duration = self.duration()?;
 
-  pub fn to_url(&self) -> Url {
-    let mut url = Url::parse("https://youtube.com/watch").expect("invalid url");
+    let mut duration_str = "".to_owned();
 
-    let mut query = std::collections::HashMap::<_, _>::new();
-    query.insert("v".to_owned(), self.vid_id.clone());
-    if let Some(start_time) = self.start_time() {
-      let start_time_sec = start_time.num_seconds();
-      if start_time_sec != 0 {
-        query.insert("t".to_owned(), start_time_sec.to_string());
+    let hours = duration.num_hours();
+    if hours > 0 {
+      duration_str += &format!("{}:", hours.to_string());
+    }
+
+    let min_gesamt = duration.num_minutes();
+    let min_display = min_gesamt - hours * 60;
+    if min_gesamt > 0 {
+      if duration_str.len() > 0 {
+        duration_str += &format!("{:02}:", min_display);
+      } else {
+        duration_str += &format!("{}:", min_display);
       }
     }
-    url.set_query(Some(
-      &query
-        .iter()
-        .map(|(name, value)| name.to_string() + "=" + value)
-        .collect::<String>()[..],
-    ));
 
-    url
+    let s_gesamt = &duration.num_seconds();
+    let s_display = s_gesamt - min_gesamt * 60;
+    if duration_str.len() > 0 {
+      duration_str += &format!("{:02}", s_display);
+    } else {
+      duration_str += &format!("{}s", s_display.to_string());
+    }
+
+    Some(duration_str)
   }
 
   pub fn annotation(&self) -> Option<String> {
@@ -257,6 +216,13 @@ impl Youtube {
     }
     channel = channel.map(|ch| "– ".to_owned() + &ch);
 
+    fn none_if_empty(s: &&Option<String>) -> Option<String> {
+      if s.as_ref().cloned().map(|s| s.is_empty()).unwrap_or(true) {
+        None
+      } else {
+        s.as_ref().cloned()
+      }
+    }
     if title.as_ref().cloned().unwrap_or("".to_owned()).len()
       + channel.as_ref().cloned().unwrap_or("".to_owned()).len()
       <= max_len
@@ -268,7 +234,7 @@ impl Youtube {
           &duration,
         ]
         .iter()
-        .cloned()
+        .map(|s| none_if_empty(s))
         .flatten()
         .join(" "),
       )
@@ -295,30 +261,65 @@ impl Youtube {
       }
     }
   }
+
+  pub fn to_url(&self, display: bool) -> Url {
+    let mut url = Url::parse({
+      if display {
+        "https://youtube.com/watch"
+      } else {
+        "https://www.youtube.com/watch"
+      }
+    })
+    .expect("invalid url");
+
+    let mut query = std::collections::HashMap::<_, _>::new();
+    query.insert("v".to_owned(), self.vid_id.clone());
+    if let Some(start_time) = self.start_time() {
+      let start_time_sec = start_time.num_seconds();
+      if start_time_sec != 0 {
+        query.insert("t".to_owned(), start_time_sec.to_string());
+      }
+    }
+    url.set_query(Some(
+      &query
+        .iter()
+        .map(|(name, value)| name.to_string() + "=" + value)
+        .collect::<String>()[..],
+    ));
+
+    url
+  }
   pub fn to_metadata(&self) -> crate::models::UrlMetadata {
     crate::models::UrlMetadata {
-      url: self.to_url().to_string(),
+      url: self.to_url(false).to_string(),
       title: self.title(),
       author: self.channel(),
       duration: self.duration().map(|dur| ChronoDurationProxy(dur)),
+      start_time: self.start_time().map(|dur| ChronoDurationProxy(dur)),
     }
   }
-  pub fn from_metadata(metadata: &crate::models::UrlMetadata) -> Self {
-    Self {
-      vid_id: "".to_owned(),
-      start_time: None,
-      was_enhanced: false,
-      url: Url::parse(&metadata.url)
-        .expect("Error parsing url obj from database. Something's wrong here."),
+  pub fn from_metadata(metadata: &crate::models::UrlMetadata) -> Option<Self> {
+    let url = Url::parse(&metadata.url).ok()?;
 
-      yt_dl: None,
-    }
+    Some(Self {
+      vid_id: Self::parse_vid_id(&url)?,
+      start_time: metadata.start_time.map(|dur| *dur),
+      yt_dl: Some(YoutubeDlVideo {
+        title: metadata.title.as_ref().cloned().unwrap_or("".to_owned()),
+        channel: metadata.author.clone(),
+        duration: Some(serde_json::json!(metadata
+          .duration
+          .map(|t| (*t).num_seconds()))),
+        start_time: metadata.start_time.map(|t| (*t).num_seconds() as f64),
+      }),
+    })
   }
 }
 
 impl std::cmp::PartialEq for Youtube {
   fn eq(&self, other: &Self) -> bool {
-    self.url == other.url
+    // deliberately ignoring `start_time`
+    self.vid_id == other.vid_id
   }
 }
 
