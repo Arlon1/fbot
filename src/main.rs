@@ -32,17 +32,18 @@ struct Opt {
   #[clap(short, long, default_value = "fbot.dhall")]
   config_file: PathBuf,
   #[clap(subcommand)]
-  mode: BotMode,
+  mode: Option<BotMode>,
 }
 #[derive(Clap, Debug)]
 enum BotMode {
+  BotServer,
   #[clap(alias = "i")]
   Interactive,
   UpdateUserDatabase {
     csv_file: PathBuf,
   },
   LogMode {
-    log_file: PathBuf,
+    log_file: Option<PathBuf>,
   },
 }
 
@@ -83,12 +84,13 @@ async fn run() -> Result<()> {
     channels.extend(botconf.channels.iter());
   }
 
-  match opt.mode {
+  let botmode = opt.mode.unwrap_or(BotMode::BotServer);
+  match botmode {
     BotMode::Interactive => {
       println!("starting interactive mode");
       run_bots_interactive(&bots)
     }
-    _ => match opt.mode {
+    _ => match botmode {
       BotMode::UpdateUserDatabase { csv_file } => {
         let mut userlist = vec![];
         csv::Reader::from_path(csv_file)?
@@ -106,28 +108,36 @@ async fn run() -> Result<()> {
       }
       _ => {
         let client = Client::new(&conf.account.user, &conf.account.pass).await?;
-        match opt.mode {
+        match botmode {
           BotMode::LogMode { log_file } => {
-            let log_stream = client
-              .fetch_log("", &LogMode::DateRecent(chrono::Duration::weeks(4)))
-              .await?;
-            tokio::pin!(log_stream);
-            while let Some(recv_post) = log_stream.try_next().await? {
-              let mut send_posts = vec![];
-              for post_str in process_post(&recv_post, &bots) {
-                send_posts.push(post_str);
+            match log_file {
+              None => {
+                let log_stream = client
+                  .fetch_log("", &LogMode::DateRecent(chrono::Duration::weeks(4)))
+                  .await?;
+                tokio::pin!(log_stream);
+                while let Some(recv_post) = log_stream.try_next().await? {
+                  let mut send_posts = vec![];
+                  for post_str in process_post(&recv_post, &bots) {
+                    send_posts.push(post_str);
+                  }
+                  if !send_posts.is_empty() {
+                    println!(
+                      "> {}\t{}:\t{} ",
+                      recv_post.date.format("%m-%d %H:%M:%S"),
+                      &recv_post.post.name.trim(),
+                      &recv_post.post.message.trim().replace("\n", ">\n")
+                    );
+                    println!("{}\n", send_posts.join("\n"));
+                  }
+                }
+                Ok(())
               }
-              if !send_posts.is_empty() {
-                println!(
-                  "> {}\t{}:\t{} ",
-                  recv_post.date.format("%m-%d %H:%M:%S"),
-                  &recv_post.post.name.trim(),
-                  &recv_post.post.message.trim().replace("\n", ">\n")
-                );
-                println!("{}\n", send_posts.join("\n"));
+              Some(_log_file) => {
+                // todo
+                Ok(())
               }
             }
-            Ok(())
           }
           _ => run_bots(&client, &bots, &channels.into_iter().collect::<Vec<_>>()).await,
         }
