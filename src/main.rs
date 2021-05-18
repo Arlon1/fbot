@@ -6,10 +6,10 @@ use diesel::{pg::PgConnection, prelude::*};
 use futures::prelude::*;
 use log::{debug, info, warn};
 use qedchat::*;
-use std::ops::Deref;
 use std::{
   borrow::Cow,
   collections::{HashMap, HashSet},
+  ops::Deref,
   path::PathBuf,
   sync::Mutex,
 };

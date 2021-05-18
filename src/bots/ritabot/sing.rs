@@ -210,11 +210,11 @@ fn forget_url(url: &str, conn: &PgConnection) -> String {
   }
 }
 
-fn sing_count(conn: &PgConnection) -> Result<usize> {
+fn sing_count(conn: &PgConnection) -> Result<i64> {
   Ok(
     schema::sing::table
       .select(diesel::dsl::count(schema::sing::dsl::url))
-      .execute(conn)?,
+      .first(conn)?,
   )
 }
 
