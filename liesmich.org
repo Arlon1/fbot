@@ -1,22 +1,22 @@
-* setup
+** setup
 *** installation
 **** database
      only tested with postgres (limitation is what diesel supports)
      - install postgres
      - add user
      - create database
-*** diesel
-**** varient 1 (reccomended I guess?)
+**** diesel
+***** varient 1 (recomended I guess?)
      #+begin_src sh
        $ cargo install diesel_cli
        $ export DATABASE_URL="postgres://fbot:pass@localhost/fbot
-
-       $ diesel migration run
+       $ diesel setup
      #+end_src
-**** varient 2 (untested)
-     run every `up.sql` from `migrations/`
+***** varient 2 (untested)
+     run every =up.sql= from =migrations/=
 *** configure bot
     edit `fbot.dhall`
+    
     (chat credentials can stay unset for interactive mode)
 *** build
     #+begin_src sh 
@@ -27,10 +27,14 @@
     $ cargo run -- i
     #+end_src
     have fun ;-)
-* hack it
+** hack it
 ** bots
    bots are located in `bots`
+
+   when changed =migrations/= rerun them with =diesel migration redo= (possibly needed: =run=/=revert=)
 *** new bots
     new bots have to be registered in `main.rs` (or they aren't processed)
-    templates can be found in `src/bots/mod.rs`. you probably want `simple_bot` or `clap_bot` 
+    
+    templates can be found in `src/bots/mod.rs`. you probably want to use `simple_bot` or `clap_bot` (for splitted arguments) 
+    
     don't forget to include an entry in `fbot.dhall`
