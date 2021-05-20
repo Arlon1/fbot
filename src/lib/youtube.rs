@@ -262,15 +262,8 @@ impl Youtube {
     }
   }
 
-  pub fn to_url(&self, display: bool) -> Url {
-    let mut url = Url::parse({
-      if display {
-        "https://youtube.com/watch"
-      } else {
-        "https://www.youtube.com/watch"
-      }
-    })
-    .expect("invalid url");
+  pub fn to_url(&self) -> Url {
+    let mut url = Url::parse("https://www.youtube.com/watch").expect("invalid url");
 
     let mut query = std::collections::HashMap::<_, _>::new();
     query.insert("v".to_owned(), self.vid_id.clone());
@@ -291,7 +284,7 @@ impl Youtube {
   }
   pub fn to_metadata(&self) -> crate::models::UrlMetadata {
     crate::models::UrlMetadata {
-      url: self.to_url(false).to_string(),
+      url: self.to_url().to_string(),
       title: self.title(),
       author: self.channel(),
       duration: self.duration().map(|dur| ChronoDurationProxy(dur)),

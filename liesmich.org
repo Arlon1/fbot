@@ -18,21 +18,19 @@
     edit `fbot.dhall`
     
     (chat credentials can stay unset for interactive mode)
-*** build
-    #+begin_src sh 
-      $ cargo build
-    #+end_src
+** run it
 *** run in interactive mode
+    (=cargo run= includes =cargo build=)
     #+begin_src 
     $ cargo run -- i
     #+end_src
     have fun ;-)
 ** hack it
-** bots
+*** bots
    bots are located in `bots`
 
-   when changed =migrations/= rerun them with =diesel migration redo= (possibly needed: =run=/=revert=)
-*** new bots
+   if you changed =migrations/= update database and =schema.rs= with =diesel migration redo= (possibly needed: =run=/=revert=)
+**** new bots
     new bots have to be registered in `main.rs` (or they aren't processed)
     
     templates can be found in `src/bots/mod.rs`. you probably want to use `simple_bot` or `clap_bot` (for splitted arguments) 

@@ -11,21 +11,21 @@ use url::Url;
 pub enum SingMode {
   Sing,
 
-  #[clap(aliases = &["a", "l", "add"])]
+  #[clap(name = "--learn", aliases = &["learn", "l", "-l", "-a", "--add"])]
   Learn {
     url: String,
   },
-  #[clap(aliases = &["repl"])]
+  #[clap(name = "--replace", aliases = &["replace", "repl", "--repl"])]
   Replace {
     oldurl: String,
     newurl: String,
   },
-  #[clap(aliases = &["r", "del", "delete", "forget"])]
+  #[clap(name = "--remove", aliases = &["remove", "r", "-r", "del", "delete", "forget"])]
   Remove {
     url: String,
   },
 
-  #[clap(alias = "c")]
+  #[clap(name = "--count", aliases = &["count", "c", "-c"])]
   Count,
 }
 
@@ -34,15 +34,15 @@ fn annotation_from_metadata(metadata: Option<models::UrlMetadata>) -> Option<Str
 }
 
 fn insert_or_update_metadata(
-  url: &Url,
+  yt: &Youtube,
   post: &RecvPost,
   conn: &PgConnection,
 ) -> Result<Option<models::UrlMetadata>> {
-  let url_obj = url;
-  let url = url_obj.to_string();
+  let url = yt.to_url();
+  let url_str = url.to_string();
 
   let urls_list = schema::url__::table
-    .filter(schema::url__::dsl::url.eq(&url))
+    .filter(schema::url__::dsl::url.eq(&url_str))
     .load::<models::Urls>(conn)
     .expect("Error loading urls");
 
@@ -50,7 +50,7 @@ fn insert_or_update_metadata(
     0 => {
       diesel::insert_into(schema::url__::table)
         .values(models::Urls {
-          url: url.to_owned(),
+          url: url_str.to_owned(),
           last_updated: post.date.naive_local(),
         })
         .execute(conn)
@@ -68,50 +68,45 @@ fn insert_or_update_metadata(
   };
 
   let old_metadata = &schema::url_metadata::table
-    .filter(schema::url_metadata::url.eq(&url))
+    .filter(schema::url_metadata::url.eq(&url_str))
     .load::<models::UrlMetadata>(conn)
     .expect("Error querying url_metadata")
     .last()
     .to_owned()
     .cloned();
 
-  diesel::update(schema::url__::table.filter(schema::url__::dsl::url.eq(&url)))
+  diesel::update(schema::url__::table.filter(schema::url__::dsl::url.eq(&url_str)))
     .set(schema::url__::dsl::last_updated.eq(Local::now()))
     .execute(conn)
     .expect("Error updating `last_updated` in table `urls`");
 
-  let y = Youtube::from_url(&url_obj).map(|y| y.to_metadata());
-
   Ok(if update_metadata {
-    if old_metadata != &y {
-      if let Some(new_metadata) = y {
-        match old_metadata {
-          None => {
-            let query = diesel::insert_into(schema::url_metadata::table).values(&new_metadata);
-            query
-              .execute(conn)
-              .expect("Could not insert into url_metadata");
-            Some(new_metadata)
-          }
-          Some(_) => {
-            diesel::update(
-              schema::url_metadata::table.filter(schema::url_metadata::dsl::url.eq(&url)),
-            )
-            .set(&new_metadata)
+    let new_metadata = yt.to_metadata();
+    if old_metadata != &Some(new_metadata.clone()) {
+      match old_metadata {
+        None => {
+          let query = diesel::insert_into(schema::url_metadata::table).values(&new_metadata);
+          query
             .execute(conn)
-            .expect("Could not update url_metadata");
-            Some(new_metadata)
-          }
+            .expect("Could not insert into url_metadata");
+          Some(new_metadata)
         }
-      } else {
-        diesel::delete(schema::url_metadata::table)
-          .filter(schema::url_metadata::dsl::url.eq(&url))
+        Some(_) => {
+          diesel::update(
+            schema::url_metadata::table.filter(schema::url_metadata::dsl::url.eq(&url_str)),
+          )
+          .set(&new_metadata)
           .execute(conn)
-          .expect("Could not delete from url_metadata");
-        None
+          .expect("Could not update url_metadata");
+          Some(new_metadata)
+        }
       }
     } else {
-      old_metadata.to_owned()
+      diesel::delete(schema::url_metadata::table)
+        .filter(schema::url_metadata::dsl::url.eq(&url_str))
+        .execute(conn)
+        .expect("Could not delete from url_metadata");
+      None
     }
   } else {
     old_metadata.to_owned()
@@ -155,16 +150,17 @@ fn sing_url(post: &RecvPost, conn: &PgConnection) -> String {
 }
 
 fn learn_url(url: &str, post: &RecvPost, conn: &PgConnection) -> String {
-  let mut url = url.to_owned();
-  if !url.starts_with("http") {
-    url = "https://".to_owned() + &url;
-  }
+  let url = url.to_owned();
 
-  if let Some(url_obj) = Url::parse(&url).ok() {
+  if let Some(yt_obj) = Url::parse(&url)
+    .ok()
+    .and_then(|opt| Youtube::from_url(&opt))
+  {
+    let url = yt_obj.to_url();
     // inserts url into table `sing`
     match diesel::insert_into(schema::sing::table)
       .values(models::Sing {
-        url: url.to_owned(),
+        url: yt_obj.to_url().to_string(),
         added: post.date.naive_local(),
         added_by: post
           .username
@@ -176,7 +172,7 @@ fn learn_url(url: &str, post: &RecvPost, conn: &PgConnection) -> String {
       .execute(conn)
     {
       Ok(_) => {
-        let metadata = insert_or_update_metadata(&url_obj, post, conn)
+        let metadata = insert_or_update_metadata(&yt_obj, post, conn)
           .ok()
           .flatten();
 

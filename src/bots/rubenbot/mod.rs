@@ -129,7 +129,7 @@ pub fn youtube_link_enhancer() -> impl LinkEnhancer {
         .join("&");
       if url.query().unwrap_or("") != query_filtered {
         url.set_query(Some(&query_filtered));
-        stated_url.set_url(y.to_url(true));
+        stated_url.set_url(y.to_url());
       }
 
       if let Some(a) = y.annotation() {
