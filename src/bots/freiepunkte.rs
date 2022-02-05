@@ -17,41 +17,6 @@ pub fn freiepunkte(conn: &Mutex<PgConnection>) -> impl Bot + '_ {
     Add,
     Remove,
   }
-  //impl clap::ArgEnum for FreiepunkteMode {
-  //  fn value_variants<'a>() -> &'a [Self] {
-  //    &["show", "add", "remove"]
-  //  }
-  //
-  //  fn from_str(s: &str, case_insensitive: bool) -> Result<Self, String> {
-  //    dbg!("was here");
-  //    match &{
-  //      if case_insensitive {
-  //        let s = s.to_lowercase();
-  //        s
-  //      } else {
-  //        s.to_owned()
-  //      }
-  //    }[..]
-  //    {
-  //      "s" | "-s" | "show" | "--show" => Ok(FreiepunkteMode::Show),
-  //      "a" | "-a" | "add" | "--add" => Ok(FreiepunkteMode::Add),
-  //      "r" | "-r" | "remove" | "--remove" => Ok(FreiepunkteMode::Remove),
-  //      _ => Err("no match".to_owned()),
-  //    }
-  //  }
-  //  fn as_arg(&self) -> Option<&'static str> {
-  //    match self {
-  //      Self::Show => Some("show"),
-  //      Self::Add => Some("add"),
-  //      Self::Remove => Some("remove"),
-  //      //_ => None,
-  //    }
-  //  }
-  //
-  //  fn to_arg_value<'a>(&self) -> Option<clap::ArgValue<'a>> {
-  //    todo!()
-  //  }
-  //}
 
   #[derive(Parser, Clone, Debug)]
   struct Opt {
@@ -112,7 +77,7 @@ fn punktestand(
     //  Some(freiepunkte_value) => Ok(Some(freiepunkte_value.wert)),
     //  None => Ok(None),
     //}
-    Ok(None)
+    Ok(Some(0)) // todo
   } else {
     Ok(None)
   }
