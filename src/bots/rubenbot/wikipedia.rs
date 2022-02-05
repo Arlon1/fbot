@@ -62,7 +62,7 @@ pub fn from_url(url: Url) -> Option<WpType> {
     Regex::new(r"(?x)(?P<lang>[a-z]{2})\.(m\.)?(wikipedia)(\.org)\.?").expect("invalid regex");
   let re_path_regular = Regex::new(r"/wiki/(?P<title>.+)").expect("invalid regex");
   let re_media_fragment =
-    Regex::new(r"/media/Datei(:|%3[Aa])(?P<filename>.+)").expect("invalid regex");
+    Regex::new(r"/media/(Datei|File)(:|%3[Aa])(?P<filename>.+)").expect("invalid regex");
 
   if let Some(captures) = re_hostname.captures(url.host_str()?) {
     let lang = captures.name("lang")?.as_str().to_owned();
