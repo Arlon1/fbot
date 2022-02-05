@@ -18,21 +18,38 @@ CREATE TABLE url_metadata (
 	start_time	BigInt
 );
 
-CREATE TABLE chatuser (
+CREATE TABLE qedmitglied (
 	userid		Integer PRIMARY KEY,
 	username	Text NOT NULL UNIQUE
 );
-CREATE OR REPLACE RULE ignore_duplicate_inserts_on_chatuser AS ON INSERT TO chatuser
-  WHERE (EXISTS (SELECT 1 FROM chatuser WHERE new.userid = chatuser.userid))
-  DO INSTEAD NOTHING;
-
 
 CREATE TABLE nickname__ (
-	userid		Integer NOT NULL REFERENCES chatuser(userid),
-	nickname		Text PRIMARY KEY
+	userid		Integer NOT NULL REFERENCES qedmitglied(userid),
+	nickname	Text PRIMARY KEY
 );
 
 CREATE TABLE nickname_preferred (
-	userid		Integer PRIMARY KEY REFERENCES chatuser(userid),
+	userid		Integer PRIMARY KEY REFERENCES qedmitglied(userid),
 	preferred	Text REFERENCES nickname__(nickname)
+);
+
+CREATE TABLE ping (
+	id		SERIAL PRIMARY KEY, 
+	sender		Integer REFERENCES qedmitglied(userid),
+	receiver		Text   NOT NULL,
+	sent		TIMESTAMP WITH TIME ZONE NOT NULL,
+	scheduled	TIMESTAMP WITH TIME ZONE,
+	message 		Text   NOT NULL
+);
+
+
+CREATE TABLE freiepunkte (
+	id		SERIAL PRIMARY KEY,
+	name		Text NOT NULL
+);
+
+CREATE TABLE freiepunkte_values (
+	id		Integer PRIMARY KEY REFERENCES freiepunkte(id),
+	userid		Integer REFERENCES qedmitglied(userid),
+	wert		Integer NOT NULL
 );

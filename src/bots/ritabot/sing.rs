@@ -2,12 +2,12 @@ use crate::{lib::Youtube, models, schema};
 
 use anyhow::Result;
 use chrono::offset::Local;
-use clap::Clap;
+use clap::Parser;
 use diesel::{prelude::*, result::DatabaseErrorKind, PgConnection};
 use qedchat::RecvPost;
 use url::Url;
 
-#[derive(Clap, Debug)]
+#[derive(Parser, Debug)]
 pub enum SingMode {
   Sing,
 

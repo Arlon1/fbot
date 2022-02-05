@@ -1,35 +1,40 @@
+use diesel::*;
+use parking_lot::Mutex;
 use url::Url;
 
 pub mod stated_url;
 use stated_url::StatedUrl;
 mod wikipedia;
 
-use crate::bots::*;
+use crate::{
+  bots::{util::*, *},
+  models, schema,
+};
 use wikipedia::wikipedia_enhancer;
 
 pub trait LinkEnhancer {
-  fn enhance(&self, arg: &(StatedUrl, Vec<String>)) -> (StatedUrl, Vec<String>);
+  fn enhance(&self, arg: &(StatedUrl, Vec<String>)) -> Result<(StatedUrl, Vec<String>)>;
 }
 fn simple_enhancer(
-  f: impl Fn(&(StatedUrl, Vec<String>)) -> (StatedUrl, Vec<String>),
+  f: impl Fn(&(StatedUrl, Vec<String>)) -> Result<(StatedUrl, Vec<String>)>,
 ) -> impl LinkEnhancer {
   struct SimpleEnhancer<A>(A);
-  impl<A: Fn(&(StatedUrl, Vec<String>)) -> (StatedUrl, Vec<String>)> LinkEnhancer
+  impl<A: Fn(&(StatedUrl, Vec<String>)) -> Result<(StatedUrl, Vec<String>)>> LinkEnhancer
     for SimpleEnhancer<A>
   {
-    fn enhance(&self, arg: &(StatedUrl, Vec<String>)) -> (StatedUrl, Vec<String>) {
+    fn enhance(&self, arg: &(StatedUrl, Vec<String>)) -> Result<(StatedUrl, Vec<String>)> {
       (self.0)(arg)
     }
   }
   SimpleEnhancer(f)
 }
 
-pub fn rubenbot() -> impl Bot {
+pub fn rubenbot(conn: &Mutex<PgConnection>) -> impl Bot + '_ {
   simple_bot(move |recv_post| {
     let enhancers: Vec<(_, Box<dyn LinkEnhancer + Send + Sync>)> = vec![
       ("wikipedia_enhancer", Box::new(wikipedia_enhancer())),
       //("qedchat_link_encode", Box::new(qedchat_link_encode())),
-      ("youtube_enhancer", Box::new(youtube_link_enhancer())),
+      ("youtube_enhancer", Box::new(youtube_link_enhancer(conn))),
       ("qedgallery", Box::new(qedgallery())),
     ];
 
@@ -49,9 +54,12 @@ pub fn rubenbot() -> impl Bot {
           .filter(|su| vec!["http", "https"].contains(&su.get_url().to_owned().scheme()))
           .map(|su| (su, vec![]))
           .map(|(su, et)| {
-            enhancers
-              .iter()
-              .fold((su, et), |(su, et), enhancer| enhancer.1.enhance(&(su, et)))
+            enhancers.iter().fold((su, et), |(su, et), enhancer| {
+              enhancer
+                .1
+                .enhance(&(su.clone(), et.clone()))
+                .unwrap_or((su, et))
+            })
           })
           .collect::<Vec<(StatedUrl, Vec<String>)>>()
       } else {
@@ -111,31 +119,64 @@ fn qedgallery() -> impl LinkEnhancer {
       stated_url.set_url(url);
     }
 
-    (stated_url, extra_texts.clone())
+    Ok((stated_url, extra_texts.clone()))
   })
 }
 
-pub fn youtube_link_enhancer() -> impl LinkEnhancer {
-  simple_enhancer(|(stated_url, extra_texts)| {
+pub fn youtube_link_enhancer(conn: &Mutex<PgConnection>) -> impl LinkEnhancer + '_ {
+  simple_enhancer(move |(stated_url, extra_texts)| {
+    let cc = conn.lock();
+    let conn = cc.deref();
+
     let mut stated_url = stated_url.clone();
     let mut extra_texts = extra_texts.clone();
 
-    let url = &mut stated_url.get_url();
-    if let Some(y) = crate::youtube::Youtube::from_url(url) {
-      let query_filtered = url
-        .query_pairs()
-        .filter(|(key, _value)| !vec!["list", "index"].contains(&&key.to_owned().to_string()[..]))
-        .map(|(key, value)| key + "=" + value)
-        .join("&");
-      if url.query().unwrap_or("") != query_filtered {
-        url.set_query(Some(&query_filtered));
-        stated_url.set_url(y.to_url());
-      }
+    let s_url = &mut stated_url.get_url();
 
-      if let Some(a) = y.annotation() {
-        extra_texts.push(a);
+    match schema::url__::table
+      .filter(schema::url__::dsl::url.eq(s_url.to_string()))
+      .load::<models::Urls>(conn)
+      .catch_notfound()?
+    {
+      Some(url_row) =>
+      //
+      //
+      {
+        Ok((stated_url, extra_texts))
+      }
+      None =>
+      // read last_modified from database
+      // if recent {
+      //    read from database
+      // } else {
+      //   create new youtube object
+      // }
+      {
+        Ok((stated_url, extra_texts))
       }
     }
-    (stated_url, extra_texts)
+
+    //if let Some(y) = crate::youtube::Youtube::from_url(s_url) {
+    //  // filter playlist tags out
+    //  //let query_filtered = s_url
+    //  //  .query_pairs()
+    //  //  .filter(|(key, _value)| !vec!["list", "index"].contains(&&key.to_owned().to_string()[..]))
+    //  //  .map(|(key, value)| key + "=" + value)
+    //  //  .join("&");
+    //  //if s_url.query().unwrap_or("") != query_filtered {
+    //  //  s_url.set_query(Some(&query_filtered));
+    //  //}
+    //
+    //  let y_to_url = y.to_url();
+    //  if y_to_url.to_string() != stated_url.get_url().to_string() {
+    //    stated_url.set_url(y_to_url);
+    //  }
+    //  dbg!(&y);
+    //
+    //  if let Some(a) = y.annotation() {
+    //    extra_texts.push(a);
+    //  }
+    //}
+    //(stated_url, extra_texts)
   })
 }

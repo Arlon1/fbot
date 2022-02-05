@@ -41,8 +41,8 @@ impl PartialEq for UrlMetadata {
 }
 
 #[derive(Debug, Deserialize, Insertable, Queryable, QueryableByName)]
-#[table_name = "chatuser"]
-pub struct Chatuser {
+#[table_name = "qedmitglied"]
+pub struct Qedmitglied {
   #[serde(alias = "Id")]
   pub userid: i32,
   #[serde(alias = "Benutzername")]
@@ -54,4 +54,52 @@ pub struct Chatuser {
 pub struct Nickname {
   pub userid: i32,
   pub nickname: String,
+}
+
+#[derive(Debug, Insertable, Queryable, QueryableByName)]
+#[table_name = "nickname_preferred"]
+pub struct NicknamePreferred {
+  pub userid: i32,
+  pub preferred: String,
+}
+
+#[derive(Debug, Queryable, QueryableByName)]
+#[table_name = "ping"]
+pub struct PingQuery {
+  pub id: i32,
+  pub sender: Option<i32>,
+  pub receiver: String,
+  pub sent: NaiveDateTime,
+  pub scheduled: Option<NaiveDateTime>,
+  pub message: String,
+}
+impl std::fmt::Display for PingQuery {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{} sagte: {}", "", self.message)
+  }
+}
+
+#[derive(Debug, Insertable)]
+#[table_name = "ping"]
+pub struct PingInsert {
+  pub sender: Option<i32>,
+  pub receiver: String,
+  pub sent: NaiveDateTime,
+  pub scheduled: Option<NaiveDateTime>,
+  pub message: String,
+}
+
+#[derive(Debug, Insertable, Queryable, QueryableByName)]
+#[table_name = "freiepunkte"]
+pub struct FreiePunkte {
+  pub id: i32,
+  pub name: String,
+}
+
+#[derive(Debug, Insertable, Queryable, QueryableByName)]
+#[table_name = "freiepunkte_values"]
+pub struct FreiePunkteValues {
+  pub id: i32,
+  pub userid: i32,
+  pub wert: i32,
 }

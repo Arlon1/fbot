@@ -62,3 +62,14 @@ mod test {
     test(" asdf", None);
   }
 }
+
+#[easy_ext::ext(ResultExt)]
+pub impl<T> diesel::result::QueryResult<T> {
+  fn catch_notfound(self) -> diesel::result::QueryResult<Option<T>> {
+    match self {
+      Ok(t) => Ok(Some(t)),
+      Err(diesel::result::Error::NotFound) => Ok(None),
+      Err(err) => Err(err),
+    }
+  }
+}

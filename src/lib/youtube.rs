@@ -31,6 +31,15 @@ impl Youtube {
     vid_id.truncate(vid_id_length);
     let vid_id = vid_id.deref().to_owned();
 
+    let mut url = url.clone();
+
+    let pairs = url.query_pairs();
+    let query_str = pairs
+      .filter(|(name, _)| !["list", "index"].contains(&&name.clone().into_owned()[..]))
+      .map(|(name, value)| format!("{}={}", name, value))
+      .join("&");
+    url.set_query(Some(&query_str));
+
     match youtube_dl(&url) {
       Ok(output) => {
         let metadata: Option<YoutubeDlVideo> =
@@ -141,12 +150,19 @@ impl Youtube {
     }
   }
   pub fn parse_start_time_from_url(url: &Url) -> Option<Duration> {
-    let start_time = url
-      .query_pairs()
-      .filter(|pair| pair.clone().0 == "t")
-      .map(|pair| pair.1)
-      .last()?
-      .into_owned();
+    let start_time = {
+      if let Some(frag) = url.fragment() {
+        frag.to_owned()
+      } else {
+        url
+          .query_pairs()
+          .filter(|pair| pair.clone().0 == "t")
+          .map(|pair| pair.1)
+          .last()?
+          .into_owned()
+      }
+    };
+
     Self::parse_start_time_parameter(start_time)
   }
   fn format_duration(&self) -> Option<String> {
@@ -277,7 +293,7 @@ impl Youtube {
       &query
         .iter()
         .map(|(name, value)| name.to_string() + "=" + value)
-        .collect::<String>()[..],
+        .join("&")[..],
     ));
 
     url

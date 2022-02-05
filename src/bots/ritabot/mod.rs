@@ -1,10 +1,10 @@
 use crate::{bots::*, lib::*};
 
-use clap::Clap;
+use clap::Parser;
 use diesel::PgConnection;
 use log::error;
+use parking_lot::Mutex;
 use sha1::{Digest, Sha1};
-use std::sync::Mutex;
 
 mod dual_error;
 mod sing;
@@ -15,7 +15,7 @@ use sing::*;
 use ud::*;
 
 pub fn ritabot(execution_last: Mutex<InstantWaiter>, conn: &Mutex<PgConnection>) -> impl Bot + '_ {
-  #[derive(Clap)]
+  #[derive(Parser)]
   enum Opt {
     Ping {},
     Ud {
@@ -71,7 +71,7 @@ pub fn ritabot(execution_last: Mutex<InstantWaiter>, conn: &Mutex<PgConnection>)
         //format!("Ich bin jetzt {}", name)
       }*/
       Sing { mode } => {
-        let c = conn.lock().expect("could not get lock");
+        let c = conn.lock();
         let cc = c.deref();
 
         sing(mode, post, cc)

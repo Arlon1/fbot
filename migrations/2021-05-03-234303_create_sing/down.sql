@@ -6,5 +6,10 @@ DROP TABLE url__;
 
 DROP TABLE nickname_preferred;
 DROP TABLE nickname__;
-DROP RULE ignore_duplicate_inserts_on_chatuser ON chatuser; 
-DROP TABLE chatuser;
+
+DROP TABLE ping;
+
+DROP TABLE freiepunkte_values;
+DROP TABLE freiepunkte;
+
+DROP TABLE qedmitglied;

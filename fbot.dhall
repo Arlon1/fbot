@@ -1,9 +1,13 @@
---let defaultChannels = [ "", "test" ]
+--let defaultChannels = [ "", "test", "fbot" ]
 let defaultChannels = [ "fbot" ]
 
 in  { bots =
-      { rubenbot.channels = defaultChannels
+      { freiepunkte.channels = defaultChannels
+      , nickname.channels = defaultChannels
+      , ping_readdb.channels = defaultChannels
+      , ping_sendtodb.channels = defaultChannels
       , ritabot.channels = defaultChannels
+      , rubenbot.channels = defaultChannels
       }
     , account =
       { user = env:fbot_user as Text ? "", pass = env:fbot_pass as Text ? "" }

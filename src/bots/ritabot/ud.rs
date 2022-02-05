@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use std::sync::Mutex;
+use parking_lot::Mutex;
 
 use super::dual_error::*;
 use crate::lib::*;
@@ -12,10 +12,7 @@ pub fn ud_lookup(
     anyhow::bail!("Du musst schon einen Begriff angeben");
   }
 
-  execution_last
-    .lock()
-    .map_err(|error| DualError::new("internal error. try again".to_owned(), error.to_string()))?
-    .wait_for_permission();
+  execution_last.lock().wait_for_permission();
 
   let obj = reqwest::blocking::get(format!(
     "http://api.urbandictionary.com/v0/define?term={term}",

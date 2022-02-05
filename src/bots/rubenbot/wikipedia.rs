@@ -1,3 +1,6 @@
+use itertools::Itertools;
+use std::collections::HashMap;
+
 use regex::Regex;
 use url::Url;
 
@@ -12,7 +15,7 @@ pub fn wikipedia_enhancer() -> impl LinkEnhancer {
       stated_url.set_url(w.to_url());
     }
 
-    (stated_url, extra_texts)
+    Ok((stated_url, extra_texts))
   })
 }
 
@@ -37,11 +40,19 @@ trait ToUrl {
   fn to_url(&self) -> Url;
 }
 
+#[derive(Debug)]
 pub struct Wikipedia {
   lang: String,
   title: String,
   fragment: Option<String>,
+  diff: Option<WikipediaDiff>,
 }
+#[derive(Clone, Copy, Debug)]
+pub struct WikipediaDiff {
+  pub diff: i32,
+  pub oldid: i32,
+}
+
 pub struct Wikimedia {
   filename: String,
 }
@@ -67,19 +78,39 @@ pub fn from_url(url: Url) -> Option<WpType> {
           lang,
           title,
           fragment,
+          diff: None,
         }))
       }
     } else if url.path() == "/w/index.php" {
-      let title_matches: Vec<(String, String)> = url
-        .query_pairs()
-        .into_owned()
-        .filter(|pair| pair.0 == "title")
-        .collect();
-      let title = title_matches.get(0)?.to_owned().1;
+      let mut query = HashMap::new();
+
+      for (name, value) in url.query_pairs() {
+        query.insert(name, value.into_owned());
+      }
+
       Some(WpType::Wikipedia(Wikipedia {
         lang,
-        title,
+        title: query
+          .get("title")
+          .map(|opt| opt.to_owned())
+          .unwrap_or("".to_owned()),
         fragment,
+        diff: {
+          let diff = query
+            .get("diff")
+            .map(|opt| opt.parse::<i32>().ok())
+            .flatten();
+          let oldid = query
+            .get("oldid")
+            .map(|opt| opt.parse::<i32>().ok())
+            .flatten();
+
+          if let Some((diff, oldid)) = diff.zip(oldid) {
+            Some(WikipediaDiff { diff, oldid })
+          } else {
+            None
+          }
+        },
       }))
     } else {
       None
@@ -99,13 +130,26 @@ fn wikimedia_parse(re: Regex, fragment: Option<String>) -> Option<Wikimedia> {
 
 impl ToUrl for Wikipedia {
   fn to_url(&self) -> Url {
-    let mut url = Url::parse(&format!(
-      "https://{lang}.wikipedia.org/wiki/{title}",
-      lang = self.lang,
-      title = self.title,
-    ))
-    .expect("parsing error");
+    let mut url = Url::parse(&format!("https://{lang}.wikipedia.org", lang = self.lang))
+      .expect("parsing error");
+
+    if let Some(diffobj) = self.diff {
+      url.set_path("/w/index.php");
+
+      let mut query_elements = vec![];
+      query_elements.push(("title", self.title.clone()));
+      query_elements.push(("diff", diffobj.diff.to_string()));
+      query_elements.push(("oldid", diffobj.oldid.to_string()));
+      let query_str = query_elements
+        .into_iter()
+        .map(|(name, value)| format!("{}={}", name, value))
+        .join("&");
+      url.set_query(Some(&query_str));
+    } else {
+      url.set_path(&format!("wiki/{title}", title = self.title,));
+    }
     url.set_fragment(self.fragment.as_ref().map(|frag| &frag[..]));
+
     url
   }
 }

@@ -31,7 +31,14 @@ diesel = {version = "1.4", features = ["chrono", "postgres"]}
 impl-enum = "0.2.0"
 diesel-chrono-duration = "1.0.0"
 csv = "1.1.6"
+parking_lot = "0.11.1"
+tokio-stream = "0.1.7"
+stream_throttle = "0.4.0"
+easy-ext = "0.2.9"
 
 
 [profile.release]
 lto = "fat"
+
+[dev-dependencies]
+proptest = "1.0.0"

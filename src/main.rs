@@ -1,17 +1,18 @@
 use anyhow::{Context, Result};
 use bots::Bot;
 use chrono::{Duration, DurationRound, Local};
-use clap::{crate_name, Clap};
+use clap::{crate_name, Parser};
 use diesel::{pg::PgConnection, prelude::*};
 use futures::prelude::*;
+use itertools::Itertools;
 use log::{debug, info, warn};
+use parking_lot::Mutex;
 use qedchat::*;
 use std::{
   borrow::Cow,
   collections::{HashMap, HashSet},
   ops::Deref,
   path::PathBuf,
-  sync::Mutex,
 };
 use tokio::task::block_in_place;
 
@@ -26,18 +27,19 @@ extern crate diesel;
 pub mod models;
 pub mod schema;
 
-#[derive(Debug, Clap)]
-#[clap(setting(clap::AppSettings::ColoredHelp))]
+#[derive(Debug, Parser)]
+//#[clap(setting(clap::AppSettings::ColoredHelp))]
+
 struct Opt {
   #[clap(short, long, default_value = "fbot.dhall")]
   config_file: PathBuf,
   #[clap(subcommand)]
   mode: Option<BotMode>,
 }
-#[derive(Clap, Debug)]
+#[derive(Parser, Debug)]
 enum BotMode {
   BotServer,
-  #[clap(alias = "i")]
+  #[clap(aliases = &["i", "-i"])]
   Interactive,
   UpdateUserDatabase {
     csv_file: PathBuf,
@@ -61,13 +63,17 @@ async fn run() -> Result<()> {
   let conf: config::Config = serde_dhall::from_file(opt.config_file).parse()?;
 
   let mutex_urbandictionary = Mutex::new(InstantWaiter::new(Duration::from_secs(2)));
-  //let mutex_rita_be = Mutex::new(string_storage::StringStorage::new(
-  //  "        Dr. Ritarost".to_owned(),
-  //));
   let conn = Mutex::new(establish_connection(conf.db));
 
   let bots_available: Vec<(_, Box<dyn Bot + Send + Sync>)> = vec![
-    ("rubenbot", Box::new(bots::rubenbot::rubenbot())),
+    (
+      "freiepunkte",
+      Box::new(bots::freiepunkte::freiepunkte(&conn)),
+    ),
+    ("nickname", Box::new(bots::nickname::nickname(&conn))),
+    ("ping_readdb", Box::new(bots::ping::ping_readdb(&conn))),
+    ("ping_sendtodb", Box::new(bots::ping::ping_sendtodb(&conn))),
+    ("rubenbot", Box::new(bots::rubenbot::rubenbot(&conn))),
     (
       "ritabot",
       Box::new(bots::ritabot::ritabot(mutex_urbandictionary, &conn)),
@@ -78,8 +84,15 @@ async fn run() -> Result<()> {
   let mut bots = vec![];
   let mut channels = HashSet::new();
 
+  println!(
+    "bots available: {:#?}",
+    bots_available.iter().map(|(name, _)| name).collect_vec()
+  );
+
   for (name, botconf) in &conf.bots {
-    let bot = bots_available.get(name.as_str()).context("unknown bot")?;
+    let bot = bots_available
+      .get(name.as_str())
+      .context(format!("unknown bot: {}", name))?;
     bots.push(bots::filter_channels(bot, botconf.channels.iter()));
     channels.extend(botconf.channels.iter());
   }
@@ -96,13 +109,14 @@ async fn run() -> Result<()> {
         csv::Reader::from_path(csv_file)?
           .deserialize()
           .for_each(|line| {
-            let line: models::Chatuser = line.expect("");
+            let line: models::Qedmitglied = line.expect("");
             userlist.push(line);
           });
-        let c = &conn.lock().expect("could not get lock");
+        let c = &conn.lock();
         let cc = c.deref();
-        diesel::insert_into(schema::chatuser::table)
+        diesel::insert_into(schema::qedmitglied::table)
           .values(userlist)
+          .on_conflict_do_nothing()
           .execute(cc)?;
         Ok(())
       }
@@ -162,7 +176,9 @@ async fn run_bots(
   bots: &[impl Bot + Send],
   channels: &[impl AsRef<str>],
 ) -> Result<()> {
-  let (mut sinks, mut recv_posts): (HashMap<_, _>, stream::SelectAll<_>) = stream::iter(channels)
+  use stream_throttle::*;
+  let throttle_pool = ThrottlePool::new(ThrottleRate::new(10, std::time::Duration::from_secs(10)));
+  let (mut sinks, recv_posts): (HashMap<_, _>, stream::SelectAll<_>) = stream::iter(channels)
     .map::<Result<_>, _>(Ok)
     .and_then(|c| async move {
       let c = c.as_ref();
@@ -174,6 +190,9 @@ async fn run_bots(
     .await?
     .into_iter()
     .unzip();
+
+  tokio::pin! {let recv_posts = recv_posts.throttle(throttle_pool);}
+
   while let Some(recv_post) = recv_posts.try_next().await? {
     debug!("received: {:?}", recv_post);
     for bot in bots {
