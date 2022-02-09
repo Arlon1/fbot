@@ -130,8 +130,11 @@ fn clap_bot_proto<C: Parser>(
         let msg = match app.clone().try_get_matches_from(args) {
           Ok(matches) => f(C::from_arg_matches(&matches).unwrap(), &post)?,
           Err(e) => {
-            if e.kind == clap::ErrorKind::MissingRequiredArgument && e.info == ["<NAME_WITH_HASH>"]
+            if (e.kind == clap::ErrorKind::MissingRequiredArgument
+              || e.kind == clap::ErrorKind::InvalidValue)
+              && !filter_args
             {
+              dbg!("test");
               None
             } else {
               let s = e.to_string();

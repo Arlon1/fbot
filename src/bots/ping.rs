@@ -9,7 +9,7 @@ use crate::{
 };
 
 pub fn ping_sendtodb(conn: &Mutex<PgConnection>) -> impl Bot + '_ {
-  #[derive(Parser)]
+  #[derive(Clone, Debug, Parser)]
   struct Opt {
     receiver: String,
     //schedule: Date
@@ -19,21 +19,23 @@ pub fn ping_sendtodb(conn: &Mutex<PgConnection>) -> impl Bot + '_ {
     let cc = conn.lock();
     let conn = cc.deref();
 
-    let sender = nickname::userid(Some(post.post.name.clone()), conn)?;
-    let receiver = match nickname::userid(Some(opt.receiver.clone()), conn)? {
-      Some(userid) => nickname::username(Some(userid), conn)?.unwrap_or(opt.receiver),
-      None => opt.receiver,
-    };
+    if opt.message.len() > 0 {
+      let sender = nickname::userid(Some(post.post.name.clone()), conn)?;
+      let receiver = match nickname::userid(Some(opt.receiver.clone()), conn)? {
+        Some(userid) => nickname::username(Some(userid), conn)?.unwrap_or(opt.receiver),
+        None => opt.receiver,
+      };
 
-    diesel::insert_into(schema::ping::table)
-      .values(models::PingInsert {
-        sender,
-        receiver,
-        sent: post.date.naive_utc(),
-        scheduled: None,
-        message: opt.message.join(" "),
-      })
-      .execute(conn)?;
+      diesel::insert_into(schema::ping::table)
+        .values(models::PingInsert {
+          sender,
+          receiver,
+          sent: post.date.naive_utc(),
+          scheduled: None,
+          message: opt.message.join(" "),
+        })
+        .execute(conn)?;
+    }
     Ok(None)
   })
 }

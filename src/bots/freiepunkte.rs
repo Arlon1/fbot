@@ -22,13 +22,14 @@ pub fn freiepunkte(conn: &Mutex<PgConnection>) -> impl Bot + '_ {
   struct Opt {
     name_with_hash: String,
     nickname: Option<String>,
-    #[clap(arg_enum, default_value = "show")]
-    mode: FreiepunkteMode,
+    #[clap(arg_enum)] // default_value = "show"
+    mode: Option<FreiepunkteMode>,
     #[clap(default_value = "1")]
     delta: i64,
   }
 
   clap_bot_notrigger("freiepunkte", move |opt: Opt, recv_post| {
+    dbg!(&opt);
     let cc = conn.lock();
     let conn = cc.deref();
 
@@ -40,13 +41,16 @@ pub fn freiepunkte(conn: &Mutex<PgConnection>) -> impl Bot + '_ {
     //let nickname = opt.nickname.unwrap_or();
 
     Ok(if !opt.name_with_hash.starts_with("#") {
-      None
+      {
+        None
+      }
     } else {
       dbg!("freiepunkte running\n{:#?}", &opt);
 
       let punktname = Some(opt.name_with_hash); //.strip_prefix("#");
 
-      match opt.mode {
+      let mode = opt.mode.unwrap_or(FreiepunkteMode::Add);
+      match mode {
         FreiepunkteMode::Show => {
           let punktestand = punktestand(
             punktid(punktname, conn)?,
