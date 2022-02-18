@@ -2,9 +2,8 @@
 let defaultChannels = [ "fbot" ]
 
 in  { bots =
-      { freiepunkte.channels = defaultChannels
-      , nickname.channels = defaultChannels
-      , ping_readdb.channels = defaultChannels
+      { nickname.channels = [] : List Text
+      , ping_readfromdb.channels = defaultChannels
       , ping_sendtodb.channels = defaultChannels
       , ritabot.channels = defaultChannels
       , rubenbot.channels = defaultChannels

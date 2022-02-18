@@ -1,6 +1,7 @@
 pub mod freiepunkte;
 pub mod nickname;
-pub mod ping;
+pub mod ping_readfromdb;
+pub mod ping_sendtodb;
 pub mod ritabot;
 pub mod rubenbot;
 mod util;
@@ -130,11 +131,13 @@ fn clap_bot_proto<C: Parser>(
         let msg = match app.clone().try_get_matches_from(args) {
           Ok(matches) => f(C::from_arg_matches(&matches).unwrap(), &post)?,
           Err(e) => {
-            if (e.kind == clap::ErrorKind::MissingRequiredArgument
-              || e.kind == clap::ErrorKind::InvalidValue)
-              && !filter_args
-            {
-              dbg!("test");
+            if
+            //[  clap::ErrorKind::MissingRequiredArgument,
+            //  clap::ErrorKind::InvalidValue,
+            //  clap::ErrorKind::ValueValidation,
+            //]
+            //.contains(&e.kind) &&
+            !filter_args && false {
               None
             } else {
               let s = e.to_string();

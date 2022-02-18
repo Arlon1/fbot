@@ -71,8 +71,14 @@ async fn run() -> Result<()> {
       Box::new(bots::freiepunkte::freiepunkte(&conn)),
     ),
     ("nickname", Box::new(bots::nickname::nickname(&conn))),
-    ("ping_readdb", Box::new(bots::ping::ping_readdb(&conn))),
-    ("ping_sendtodb", Box::new(bots::ping::ping_sendtodb(&conn))),
+    (
+      "ping_readfromdb",
+      Box::new(bots::ping_readfromdb::ping_readfromdb(&conn)),
+    ),
+    (
+      "ping_sendtodb",
+      Box::new(bots::ping_sendtodb::ping_sendtodb(&conn)),
+    ),
     ("rubenbot", Box::new(bots::rubenbot::rubenbot(&conn))),
     (
       "ritabot",

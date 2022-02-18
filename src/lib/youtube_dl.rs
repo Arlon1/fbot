@@ -32,7 +32,7 @@ pub fn youtube_dl(url: &Url) -> Result<String, YoutubeDlError> {
     Regex::new(r"This video is no longer available due to a copyright claim by (?P<claimer>.+).\n")
       .expect("invalid regex");
 
-  let output = Command::new("youtube-dl")
+  let output = Command::new("yt-dlp")
     .args(&["-j", &url.to_string()])
     .output()
     .map_err(|e| YoutubeDlError::CommandError(e.to_string()))?;

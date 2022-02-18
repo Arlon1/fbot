@@ -11,18 +11,18 @@ use crate::{
 };
 
 pub fn freiepunkte(conn: &Mutex<PgConnection>) -> impl Bot + '_ {
-  #[derive(Clone, Debug, clap::ArgEnum)]
+  #[derive(Clone, Debug, clap::ArgEnum, clap::Subcommand)]
   enum FreiepunkteMode {
     Show,
     Add,
     Remove,
   }
 
-  #[derive(Parser, Clone, Debug)]
+  #[derive(Clone, Debug, Parser)]
   struct Opt {
     name_with_hash: String,
     nickname: Option<String>,
-    #[clap(arg_enum)] // default_value = "show"
+    #[clap(arg_enum)]
     mode: Option<FreiepunkteMode>,
     #[clap(default_value = "1")]
     delta: i64,
